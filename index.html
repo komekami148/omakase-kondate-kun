@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>おまかせこんだてくん</title>
+<meta name="theme-color" content="#e08a4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="こんだてくん">
+<link rel="manifest" id="app-manifest">
+<link rel="apple-touch-icon" id="apple-touch-icon-link">
+<style>
+  :root {
+    --color-bg: #fdf6ee;
+    --color-surface: #ffffff;
+    --color-primary: #e08a4f;
+    --color-primary-dark: #c06f38;
+    --color-text: #4a3c30;
+    --color-text-sub: #8a7a6a;
+    --color-border: #eadfd0;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 {
+    font-size: 17px;
+    margin: 0;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    padding: 6px;
+    cursor: pointer;
+    color: var(--color-text-sub);
+  }
+  .icon-btn:active { opacity: 0.6; }
+  main {
+    flex: 1;
+    padding: 20px 16px 32px;
+  }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 15px;
+    margin: 0 0 8px;
+    color: var(--color-primary-dark);
+  }
+  .card p {
+    font-size: 13px;
+    color: var(--color-text-sub);
+    line-height: 1.6;
+    margin: 0;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .btn:active { background: var(--color-primary-dark); }
+  .btn-outline {
+    background: var(--color-surface);
+    color: var(--color-primary-dark);
+    border: 1px solid var(--color-primary);
+    margin-top: 10px;
+  }
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--color-text-sub);
+    font-size: 13px;
+    padding: 4px 0 14px;
+    cursor: pointer;
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--color-text-sub);
+    margin: 8px 0 0;
+    min-height: 1em;
+  }
+  input[type="text"], input[type="password"], textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+  textarea { resize: vertical; }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .input-row input { flex: 1; }
+  .edit-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .edit-list li {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .edit-list li input { flex: 1; }
+  .list-btn {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--color-text-sub);
+    flex-shrink: 0;
+  }
+  .list-btn:disabled { opacity: 0.3; }
+  .list-btn-delete { color: #c0554d; }
+  .add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .add-row input { flex: 1; }
+  .btn-small {
+    border: 1px solid var(--color-primary);
+    background: var(--color-surface);
+    color: var(--color-primary-dark);
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .btn:disabled {
+    background: #d8c9b8;
+    cursor: not-allowed;
+  }
+  .count-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .count-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+    cursor: pointer;
+  }
+  .count-btn.selected {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+  }
+  .alloc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .alloc-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .alloc-list li:last-child { border-bottom: none; }
+  .alloc-name { font-size: 14px; flex: 1; }
+  .alloc-divider {
+    display: block;
+    height: 1px;
+    padding: 0;
+    margin: 4px 0;
+    border: none;
+    background: var(--color-border);
+  }
+  .alloc-omakase .alloc-name {
+    font-weight: 700;
+    color: var(--color-primary-dark);
+  }
+  .alloc-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .alloc-controls button {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--color-primary);
+    background: var(--color-surface);
+    color: var(--color-primary-dark);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .alloc-count {
+    min-width: 20px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tag-chip {
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--color-bg);
+    color: var(--color-text-sub);
+    user-select: none;
+  }
+  .tag-chip.selected {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+  }
+  .demo-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--color-text);
+  }
+  .demo-toggle input { width: 18px; height: 18px; flex-shrink: 0; }
+  #results-loading { text-align: center; padding: 48px 16px; }
+  #results-loading p { color: var(--color-text-sub); font-size: 14px; }
+  .menu-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .menu-card.menu-card-loading { opacity: 0.5; pointer-events: none; }
+  .menu-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .menu-card-head h3 {
+    margin: 0;
+    font-size: 15px;
+    color: var(--color-text);
+    flex: 1;
+  }
+  .adopt-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--color-text-sub);
+    white-space: nowrap;
+  }
+  .adopt-toggle input { width: 18px; height: 18px; }
+  .menu-desc { font-size: 13px; color: var(--color-text-sub); margin: 6px 0; }
+  .menu-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--color-text-sub);
+    margin-bottom: 6px;
+  }
+  .kid-note {
+    font-size: 12px;
+    background: #fbf1e2;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 0 0 10px;
+    color: var(--color-text);
+  }
+  .menu-card details {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .menu-card summary {
+    cursor: pointer;
+    color: var(--color-primary-dark);
+    font-weight: 700;
+    padding: 4px 0;
+  }
+  .menu-card details ul, .menu-card details ol {
+    margin: 6px 0 0;
+    padding-left: 20px;
+    color: var(--color-text-sub);
+  }
+  .menu-card details li { margin-bottom: 4px; }
+  .menu-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .change-reason-input { flex: 1; }
+  .results-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .shopping-section h2 { margin: 0 0 10px; }
+  .shopping-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .shopping-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .shopping-list li:last-child { border-bottom: none; }
+  .shopping-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .shopping-item input {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .shopping-item-text {
+    display: flex;
+    flex-direction: column;
+  }
+  .shopping-item .checked-off {
+    text-decoration: line-through;
+    color: var(--color-text-sub);
+  }
+  .shopping-item-sub {
+    font-size: 11px;
+    color: var(--color-text-sub);
+    margin-top: 2px;
+  }
+  .menu-name-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .menu-name-list li {
+    font-size: 13px;
+    padding: 4px 0;
+    color: var(--color-text-sub);
+  }
+  .home-greeting {
+    font-size: 13px;
+    color: var(--color-text-sub);
+    text-align: center;
+    margin: 0 0 16px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 id="header-title">おまかせこんだてくん</h1>
+    <button class="icon-btn" id="btn-open-settings" aria-label="設定を開く">⚙️</button>
+  </header>
+
+  <main>
+    <!-- ホーム（条件選択）画面 -->
+    <section class="screen active" id="screen-home">
+      <p class="home-greeting">今週も献立づくり、おつかれさまです。焦らなくて大丈夫です、無理のない範囲で選んでくださいね。</p>
+
+      <div class="card">
+        <h2>今週は何回分、作りますか？</h2>
+        <div class="count-selector" id="count-selector"></div>
+      </div>
+
+      <div class="card">
+        <h2>メインタンパク質の割り当て</h2>
+        <p class="hint" id="allocation-sum-hint"></p>
+        <ul class="alloc-list" id="list-allocation"></ul>
+      </div>
+
+      <div class="card">
+        <h2>こだわり</h2>
+        <div class="tag-grid" id="tag-grid"></div>
+      </div>
+
+      <div class="card">
+        <h2>自由記入欄（任意）</h2>
+        <textarea id="input-free-text" rows="3" placeholder="例: ナスとオクラを使い切りたい／木曜は外食"></textarea>
+      </div>
+
+      <button class="btn" id="btn-generate-menu" disabled>献立を考えてもらう</button>
+    </section>
+
+    <!-- 提案結果画面 -->
+    <section class="screen" id="screen-results">
+      <button class="back-link" id="btn-results-back">← ホームへ戻る</button>
+
+      <div id="results-loading">
+        <p id="loading-message">考えています…</p>
+      </div>
+
+      <div class="card" id="results-error" style="display:none;">
+        <p id="results-error-message"></p>
+        <button class="btn btn-outline" id="btn-results-retry">もう一度</button>
+        <button class="btn btn-outline" id="btn-results-to-settings">設定を開く</button>
+      </div>
+
+      <div id="results-content" style="display:none;">
+        <div class="card" id="results-greeting-card">
+          <p id="results-greeting"></p>
+        </div>
+        <div id="menu-cards"></div>
+        <div class="results-footer">
+          <button class="btn btn-outline" id="btn-regenerate-all">全部作り直す</button>
+          <button class="btn" id="btn-confirm-adopt" disabled>採用を確定（0件）</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 買い物リスト画面 -->
+    <section class="screen" id="screen-shopping">
+      <button class="back-link" id="btn-shopping-back">← ホームへ戻る</button>
+
+      <div class="card" id="shopping-empty" style="display:none;">
+        <p>まだ買い物リストがありません。まずはホームから献立を採用してください。</p>
+      </div>
+
+      <div id="shopping-content">
+        <div class="card shopping-section" id="section-vegetables">
+          <h2>▼野菜</h2>
+          <ul class="shopping-list" id="list-shopping-vegetables"></ul>
+        </div>
+        <div class="card shopping-section" id="section-meatfish">
+          <h2>▼肉・魚</h2>
+          <ul class="shopping-list" id="list-shopping-meatfish"></ul>
+        </div>
+        <div class="card shopping-section" id="section-other">
+          <h2>▼その他</h2>
+          <ul class="shopping-list" id="list-shopping-other"></ul>
+        </div>
+        <div class="card shopping-section" id="section-pantry">
+          <h2>▼常備品の確認</h2>
+          <ul class="shopping-list" id="list-shopping-pantry"></ul>
+        </div>
+
+        <div class="card">
+          <h2>今週の献立</h2>
+          <ul class="menu-name-list" id="list-shopping-menus"></ul>
+        </div>
+
+        <button class="btn" id="btn-share-line">LINEに送る</button>
+        <button class="btn btn-outline" id="btn-copy-list" style="display:none;">コピーする</button>
+        <p class="hint" id="share-hint"></p>
+      </div>
+    </section>
+
+    <!-- 設定画面 -->
+    <section class="screen" id="screen-settings">
+      <button class="back-link" id="btn-settings-back">← ホームへ戻る</button>
+
+      <div class="card">
+        <h2>Gemini APIキー</h2>
+        <div class="input-row">
+          <input type="password" id="input-api-key" placeholder="APIキーを入力">
+          <button class="icon-btn" id="btn-toggle-api-key" aria-label="表示切替">👁</button>
+        </div>
+        <button class="btn btn-outline" id="btn-test-api-key">接続テスト</button>
+        <p class="hint" id="api-key-hint"></p>
+      </div>
+
+      <div class="card">
+        <h2>AIモデル</h2>
+        <input type="text" id="input-model-id" placeholder="例: gemini-3.5-flash">
+        <p class="hint">通常は変更不要です。エラーが続く場合はGemini公式ドキュメントで最新の軽量モデルIDをご確認のうえ変更してください。</p>
+      </div>
+
+      <div class="card">
+        <h2>デモモード</h2>
+        <label class="demo-toggle">
+          <input type="checkbox" id="input-demo-mode">
+          <span>デモモード（APIキーなしでサンプルの献立を確認できます）</span>
+        </label>
+        <p class="hint">OFFにすると、上のAPIキーを使って実際にGeminiが献立を考えます。</p>
+      </div>
+
+      <div class="card">
+        <h2>家族プロフィール</h2>
+        <textarea id="input-family-profile" rows="4" placeholder="例: 大人2人、3歳と1歳の子ども。子どもが食べやすい味付け・取り分けを重視"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>メインタンパク質マスタ</h2>
+        <p class="hint">↑↓で並べ替え、×で削除できます</p>
+        <ul class="edit-list" id="list-protein"></ul>
+        <div class="add-row">
+          <input type="text" id="input-add-protein" placeholder="新しいタンパク質を追加">
+          <button class="btn-small" id="btn-add-protein">追加</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>こだわりタグ</h2>
+        <ul class="edit-list" id="list-tag"></ul>
+        <div class="add-row">
+          <input type="text" id="input-add-tag" placeholder="新しいタグを追加">
+          <button class="btn-small" id="btn-add-tag">追加</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>常備品リスト</h2>
+        <ul class="edit-list" id="list-pantry"></ul>
+        <div class="add-row">
+          <input type="text" id="input-add-pantry" placeholder="新しい常備品を追加">
+          <button class="btn-small" id="btn-add-pantry">追加</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>データのバックアップ</h2>
+        <p>機種変更やもしもの時のために、すべてのデータをJSONで書き出し・読み込みできます。</p>
+        <button class="btn btn-outline" id="btn-export">エクスポート（JSON書き出し）</button>
+        <button class="btn btn-outline" id="btn-import-trigger">インポート（JSON読み込み）</button>
+        <input type="file" id="input-import-file" accept="application/json" style="display:none">
+        <p class="hint" id="import-hint"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+// ==========================================================
+// PWA簡易対応: manifest・アイコンを単一ファイル内で動的に生成する
+// ==========================================================
+(function setupPWA() {
+  const iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">'
+    + '<rect width="512" height="512" rx="96" fill="#e08a4f"/>'
+    + '<text x="256" y="300" font-size="260" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">🍱</text>'
+    + '</svg>';
+  const iconDataUri = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
+
+  document.getElementById('apple-touch-icon-link').setAttribute('href', iconDataUri);
+
+  const manifest = {
+    name: 'おまかせこんだてくん',
+    short_name: 'こんだてくん',
+    description: '家族の献立を考えるお手伝いをするアプリ',
+    display: 'standalone',
+    background_color: '#fdf6ee',
+    theme_color: '#e08a4f',
+    icons: [
+      { src: iconDataUri, sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+      { src: iconDataUri, sizes: '192x192', type: 'image/svg+xml', purpose: 'any' }
+    ]
+  };
+  const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  document.getElementById('app-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+})();
+
+// ==========================================================
+// StorageService: localStorage読み書きの唯一の窓口
+// 内部実装をlocalStorageからFirestore等へ差し替えられるよう、
+// 呼び出し側は必ずこのモジュール経由でデータにアクセスする
+// ==========================================================
+const StorageService = (() => {
+  function get(key, defaultValue = null) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw === null ? defaultValue : JSON.parse(raw);
+    } catch (e) {
+      console.error('StorageService.get failed:', key, e);
+      return defaultValue;
+    }
+  }
+  function set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.error('StorageService.set failed:', key, e);
+    }
+  }
+  function remove(key) {
+    localStorage.removeItem(key);
+  }
+  return { get, set, remove };
+})();
+
+// ==========================================================
+// UI: 画面遷移の管理
+// ==========================================================
+const SCREENS = ['home', 'results', 'shopping', 'settings'];
+
+function showScreen(name) {
+  SCREENS.forEach((s) => {
+    document.getElementById('screen-' + s).classList.toggle('active', s === name);
+  });
+  // 設定でタンパク質マスタ・タグマスタが変更されている場合があるため、ホーム表示のたびに再描画する
+  if (name === 'home' && typeof renderConditionsScreen === 'function') {
+    renderConditionsScreen();
+  }
+  if (name === 'shopping' && typeof renderShoppingScreen === 'function') {
+    renderShoppingScreen();
+  }
+}
+
+document.getElementById('btn-open-settings').addEventListener('click', () => showScreen('settings'));
+document.getElementById('btn-results-back').addEventListener('click', () => showScreen('home'));
+document.getElementById('btn-shopping-back').addEventListener('click', () => showScreen('home'));
+document.getElementById('btn-settings-back').addEventListener('click', () => showScreen('home'));
+
+// ==========================================================
+// 設定画面: 初期値・読み込み・保存
+// ==========================================================
+const DEFAULT_SETTINGS = {
+  apiKey: '',
+  modelId: 'gemini-3.5-flash',
+  demoMode: true,
+  familyProfile: '大人2人、3歳と1歳の子ども。子どもが食べやすい味付け・取り分けを重視',
+  proteinMaster: ['鶏むね', '鶏もも', '豚こま', '豚バラ', 'ひき肉（合いびき）', 'ひき肉（鶏）', 'たまご', '豆腐', '白身魚', '鮭', '牛こま'],
+  tagMaster: ['時短（15分以内）', 'フライパンひとつ', 'レンジ調理OK', '旬の野菜', '子どもが食べやすい', 'お腹に優しい', '一品で完結', '麺類以外', 'さっぱり', 'がっつり'],
+  pantryStaples: ['醤油', '味噌', 'みりん', '酒', '砂糖', '塩', 'こしょう', 'サラダ油', 'ごま油', 'ケチャップ', 'マヨネーズ', 'カレー粉', '片栗粉', '小麦粉', 'だしの素']
+};
+
+// 保存済み設定がなければ初期値をそのまま採用し、部分的にしかなくても不足キーは初期値で補う
+let settings = Object.assign({}, DEFAULT_SETTINGS, StorageService.get('settings', {}));
+
+function saveSettings() {
+  StorageService.set('settings', settings);
+}
+saveSettings(); // 初回起動時も初期値をStorageに反映しておく
+
+// --- 編集可能リスト（タンパク質マスタ／こだわりタグ／常備品リスト共通） ---
+function renderEditableList(listElId, arrayRef, reorderable) {
+  const ul = document.getElementById(listElId);
+  ul.innerHTML = '';
+  arrayRef.forEach((item, idx) => {
+    const li = document.createElement('li');
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = item;
+    input.addEventListener('input', () => {
+      arrayRef[idx] = input.value;
+      saveSettings();
+    });
+    li.appendChild(input);
+
+    if (reorderable) {
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.className = 'list-btn';
+      upBtn.textContent = '↑';
+      upBtn.disabled = idx === 0;
+      upBtn.addEventListener('click', () => {
+        [arrayRef[idx - 1], arrayRef[idx]] = [arrayRef[idx], arrayRef[idx - 1]];
+        saveSettings();
+        renderEditableList(listElId, arrayRef, reorderable);
+      });
+      li.appendChild(upBtn);
+
+      const downBtn = document.createElement('button');
+      downBtn.type = 'button';
+      downBtn.className = 'list-btn';
+      downBtn.textContent = '↓';
+      downBtn.disabled = idx === arrayRef.length - 1;
+      downBtn.addEventListener('click', () => {
+        [arrayRef[idx + 1], arrayRef[idx]] = [arrayRef[idx], arrayRef[idx + 1]];
+        saveSettings();
+        renderEditableList(listElId, arrayRef, reorderable);
+      });
+      li.appendChild(downBtn);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'list-btn list-btn-delete';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', () => {
+      arrayRef.splice(idx, 1);
+      saveSettings();
+      renderEditableList(listElId, arrayRef, reorderable);
+    });
+    li.appendChild(delBtn);
+
+    ul.appendChild(li);
+  });
+}
+
+function wireAddRow(inputId, btnId, arrayRef, listElId, reorderable) {
+  document.getElementById(btnId).addEventListener('click', () => {
+    const input = document.getElementById(inputId);
+    const val = input.value.trim();
+    if (!val) return;
+    arrayRef.push(val);
+    input.value = '';
+    saveSettings();
+    renderEditableList(listElId, arrayRef, reorderable);
+  });
+}
+
+// --- 画面初期表示 ---
+function initSettingsScreen() {
+  document.getElementById('input-api-key').value = settings.apiKey || '';
+  document.getElementById('input-model-id').value = settings.modelId || DEFAULT_SETTINGS.modelId;
+  document.getElementById('input-demo-mode').checked = !!settings.demoMode;
+  document.getElementById('input-family-profile').value = settings.familyProfile || '';
+  renderEditableList('list-protein', settings.proteinMaster, true);
+  renderEditableList('list-tag', settings.tagMaster, false);
+  renderEditableList('list-pantry', settings.pantryStaples, false);
+}
+initSettingsScreen();
+
+// --- APIキー欄 ---
+document.getElementById('input-api-key').addEventListener('input', (e) => {
+  settings.apiKey = e.target.value;
+  saveSettings();
+});
+document.getElementById('btn-toggle-api-key').addEventListener('click', () => {
+  const input = document.getElementById('input-api-key');
+  const btn = document.getElementById('btn-toggle-api-key');
+  const hidden = input.type === 'password';
+  input.type = hidden ? 'text' : 'password';
+  btn.textContent = hidden ? '🙈' : '👁';
+});
+document.getElementById('btn-test-api-key').addEventListener('click', async () => {
+  const hint = document.getElementById('api-key-hint');
+  const key = document.getElementById('input-api-key').value.trim();
+  if (!key) {
+    hint.textContent = 'APIキーを入力してください。';
+    return;
+  }
+  hint.textContent = '確認しています…';
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+    hint.textContent = res.ok
+      ? '接続できました。'
+      : `接続できませんでした（エラーコード: ${res.status}）。キーをご確認ください。`;
+  } catch (err) {
+    hint.textContent = '通信に失敗しました。ネットワークをご確認ください。';
+  }
+});
+document.getElementById('input-model-id').addEventListener('input', (e) => {
+  settings.modelId = e.target.value.trim();
+  saveSettings();
+});
+document.getElementById('input-demo-mode').addEventListener('change', (e) => {
+  settings.demoMode = e.target.checked;
+  saveSettings();
+});
+
+// --- 家族プロフィール ---
+document.getElementById('input-family-profile').addEventListener('input', (e) => {
+  settings.familyProfile = e.target.value;
+  saveSettings();
+});
+
+// --- 各種マスタの追加行 ---
+wireAddRow('input-add-protein', 'btn-add-protein', settings.proteinMaster, 'list-protein', true);
+wireAddRow('input-add-tag', 'btn-add-tag', settings.tagMaster, 'list-tag', false);
+wireAddRow('input-add-pantry', 'btn-add-pantry', settings.pantryStaples, 'list-pantry', false);
+
+// --- データのエクスポート／インポート ---
+document.getElementById('btn-export').addEventListener('click', () => {
+  const data = {
+    settings: StorageService.get('settings', null),
+    adoptedHistory: StorageService.get('adoptedHistory', []),
+    lastConditions: StorageService.get('lastConditions', null)
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'omakase-kondate-kun-backup.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-import-trigger').addEventListener('click', () => {
+  document.getElementById('input-import-file').click();
+});
+document.getElementById('input-import-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const hint = document.getElementById('import-hint');
+    try {
+      const data = JSON.parse(reader.result);
+      if (data.settings) StorageService.set('settings', data.settings);
+      if (data.adoptedHistory) StorageService.set('adoptedHistory', data.adoptedHistory);
+      if (data.lastConditions) StorageService.set('lastConditions', data.lastConditions);
+      settings = Object.assign({}, DEFAULT_SETTINGS, StorageService.get('settings', {}));
+      initSettingsScreen();
+      hint.textContent = '読み込みました。';
+    } catch (err) {
+      console.error('インポート失敗:', err);
+      hint.textContent = 'うまく読み込めませんでした。ファイルの内容を確認して、もう一度お試しください。';
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ==========================================================
+// 条件選択画面（ホーム）: 回数・タンパク質割り当て・タグ・自由記入
+// ==========================================================
+const DEFAULT_CONDITIONS = {
+  count: 5,
+  proteinAllocation: {},
+  selectedTags: [],
+  freeText: ''
+};
+
+let conditions = Object.assign({}, DEFAULT_CONDITIONS, StorageService.get('lastConditions', {}));
+
+function saveConditions() {
+  StorageService.set('lastConditions', conditions);
+}
+saveConditions(); // 初回起動時も初期値をStorageに反映しておく
+
+function getAllocationSum() {
+  return Object.values(conditions.proteinAllocation).reduce((a, b) => a + b, 0);
+}
+
+function renderCountSelector() {
+  const container = document.getElementById('count-selector');
+  container.innerHTML = '';
+  for (let n = 1; n <= 7; n++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'count-btn' + (conditions.count === n ? ' selected' : '');
+    btn.textContent = n;
+    btn.addEventListener('click', () => {
+      conditions.count = n;
+      saveConditions();
+      renderConditionsScreen();
+    });
+    container.appendChild(btn);
+  }
+}
+
+const OMAKASE_LABEL = 'おまかせ';
+
+function appendAllocationRow(ul, name, isOmakase) {
+  const li = document.createElement('li');
+  if (isOmakase) li.classList.add('alloc-omakase');
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'alloc-name';
+  nameSpan.textContent = isOmakase ? '🎲 ' + name : name;
+  li.appendChild(nameSpan);
+
+  const controls = document.createElement('div');
+  controls.className = 'alloc-controls';
+
+  const minusBtn = document.createElement('button');
+  minusBtn.type = 'button';
+  minusBtn.textContent = '−';
+  minusBtn.addEventListener('click', () => {
+    const cur = conditions.proteinAllocation[name] || 0;
+    if (cur > 0) {
+      conditions.proteinAllocation[name] = cur - 1;
+      saveConditions();
+      renderConditionsScreen();
+    }
+  });
+  controls.appendChild(minusBtn);
+
+  const countSpan = document.createElement('span');
+  countSpan.className = 'alloc-count';
+  countSpan.textContent = String(conditions.proteinAllocation[name] || 0);
+  controls.appendChild(countSpan);
+
+  const plusBtn = document.createElement('button');
+  plusBtn.type = 'button';
+  plusBtn.textContent = '＋';
+  plusBtn.addEventListener('click', () => {
+    const cur = conditions.proteinAllocation[name] || 0;
+    conditions.proteinAllocation[name] = cur + 1;
+    saveConditions();
+    renderConditionsScreen();
+  });
+  controls.appendChild(plusBtn);
+
+  li.appendChild(controls);
+  ul.appendChild(li);
+}
+
+function renderAllocationList() {
+  const ul = document.getElementById('list-allocation');
+  ul.innerHTML = '';
+  settings.proteinMaster.forEach((name) => appendAllocationRow(ul, name, false));
+
+  const divider = document.createElement('li');
+  divider.className = 'alloc-divider';
+  ul.appendChild(divider);
+
+  appendAllocationRow(ul, OMAKASE_LABEL, true);
+}
+
+function renderTagGrid() {
+  const container = document.getElementById('tag-grid');
+  container.innerHTML = '';
+  settings.tagMaster.forEach((tag) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    const selected = conditions.selectedTags.includes(tag);
+    chip.className = 'tag-chip' + (selected ? ' selected' : '');
+    chip.textContent = tag;
+    chip.addEventListener('click', () => {
+      const idx = conditions.selectedTags.indexOf(tag);
+      if (idx >= 0) conditions.selectedTags.splice(idx, 1);
+      else conditions.selectedTags.push(tag);
+      saveConditions();
+      renderTagGrid();
+    });
+    container.appendChild(chip);
+  });
+}
+
+function renderAllocationValidation() {
+  const sum = getAllocationSum();
+  const ok = sum === conditions.count;
+  const hint = document.getElementById('allocation-sum-hint');
+  hint.textContent = `割り当て合計: ${sum} / ${conditions.count}`;
+  hint.style.color = ok ? '#4a8a5c' : '#c0554d';
+  document.getElementById('btn-generate-menu').disabled = !ok;
+}
+
+function renderConditionsScreen() {
+  renderCountSelector();
+  renderAllocationList();
+  renderTagGrid();
+  document.getElementById('input-free-text').value = conditions.freeText || '';
+  renderAllocationValidation();
+}
+renderConditionsScreen();
+
+document.getElementById('input-free-text').addEventListener('input', (e) => {
+  conditions.freeText = e.target.value;
+  saveConditions();
+});
+
+document.getElementById('btn-generate-menu').addEventListener('click', () => {
+  if (getAllocationSum() !== conditions.count) return; // ボタン無効化済みだが念のため二重チェック
+  saveConditions();
+  showScreen('results');
+  runGeneration();
+});
+
+// ==========================================================
+// GeminiService: プロンプト生成・API呼び出し・JSON検証
+// settings.demoMode に応じてモック／実APIを切り替える
+// ==========================================================
+const GEMINI_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    greeting: { type: 'STRING' },
+    menus: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          description: { type: 'STRING' },
+          protein: { type: 'STRING' },
+          cooking_time_min: { type: 'INTEGER' },
+          kid_note: { type: 'STRING' },
+          ingredients: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                name: { type: 'STRING' },
+                amount: { type: 'NUMBER' },
+                unit: { type: 'STRING' },
+                category: { type: 'STRING', enum: ['野菜', '肉魚', 'その他'] }
+              },
+              required: ['name', 'amount', 'unit', 'category']
+            }
+          },
+          steps: { type: 'ARRAY', items: { type: 'STRING' } }
+        },
+        required: ['name', 'description', 'protein', 'cooking_time_min', 'kid_note', 'ingredients', 'steps']
+      }
+    }
+  },
+  required: ['greeting', 'menus']
+};
+
+const GeminiService = (() => {
+  const MOCK_POOL = [
+    { name: '鶏むねのさっぱりポン酢炒め', description: 'さっぱり食べられる炒め物', protein: '鶏むね', cooking_time_min: 15, kid_note: '辛みなし。取り分けてからポン酢を後がけに', ingredients: [{ name: '鶏むね肉', amount: 1, unit: '枚', category: '肉魚' }, { name: '玉ねぎ', amount: 1, unit: '個', category: '野菜' }, { name: 'ポン酢', amount: 2, unit: '大さじ', category: 'その他' }], steps: ['鶏むね肉を一口大に切る', '玉ねぎを薄切りにする', 'フライパンで炒めてポン酢で味付けする'] },
+    { name: '丸めない酢豚風', description: '肉団子にせず時短の酢豚風', protein: '豚こま', cooking_time_min: 20, kid_note: '酸味は控えめに。取り分けてから酢を足す', ingredients: [{ name: '豚こま肉', amount: 300, unit: 'g', category: '肉魚' }, { name: 'ピーマン', amount: 2, unit: '個', category: '野菜' }, { name: 'ケチャップ', amount: 2, unit: '大さじ', category: 'その他' }], steps: ['豚こまに片栗粉をまぶす', '野菜と炒める', 'ケチャップだれを絡める'] },
+    { name: 'ひき肉と豆腐の和風あんかけ', description: 'とろみで食べやすい一品', protein: 'ひき肉（合いびき）', cooking_time_min: 15, kid_note: 'とろみをつけて食べやすく。豆腐は小さく崩して取り分け', ingredients: [{ name: '合いびき肉', amount: 150, unit: 'g', category: '肉魚' }, { name: '豆腐', amount: 1, unit: '丁', category: 'その他' }, { name: '長ねぎ', amount: 1, unit: '本', category: '野菜' }], steps: ['ひき肉を炒める', '豆腐と長ねぎを加える', '水溶き片栗粉でとろみをつける'] },
+    { name: '鮭の塩麹焼き', description: '塩麹でしっとり焼き上げ', protein: '鮭', cooking_time_min: 15, kid_note: '骨に注意し、ほぐしてから取り分け', ingredients: [{ name: '鮭', amount: 2, unit: '切れ', category: '肉魚' }, { name: '塩麹', amount: 1, unit: '大さじ', category: 'その他' }, { name: 'ブロッコリー', amount: 1, unit: '株', category: '野菜' }], steps: ['鮭に塩麹を揉み込む', 'フライパンで焼く', 'ブロッコリーを添える'] },
+    { name: 'たまごとひき肉のふわとろ丼', description: '手早くできるどんぶり', protein: 'たまご', cooking_time_min: 10, kid_note: 'ふわふわ食感で食べやすい', ingredients: [{ name: '卵', amount: 3, unit: '個', category: 'その他' }, { name: '鶏ひき肉', amount: 100, unit: 'g', category: '肉魚' }, { name: '三つ葉', amount: 1, unit: '束', category: '野菜' }], steps: ['ひき肉を炒める', '溶き卵を回し入れる', '半熟でご飯にのせる'] },
+    { name: '白身魚のレンジ蒸し野菜あんかけ', description: 'レンジで完結する優しい味', protein: '白身魚', cooking_time_min: 12, kid_note: '骨なしの切り身を選ぶと安心', ingredients: [{ name: '白身魚の切り身', amount: 2, unit: '切れ', category: '肉魚' }, { name: 'にんじん', amount: 0.5, unit: '本', category: '野菜' }, { name: 'だし', amount: 100, unit: 'ml', category: 'その他' }], steps: ['耐熱皿に魚と野菜をのせる', 'ラップしてレンジ加熱', 'あんをかける'] },
+    { name: '豆腐ハンバーグ', description: 'ふわふわで消化に優しい', protein: '豆腐', cooking_time_min: 20, kid_note: '小さめに成形すると取り分けやすい', ingredients: [{ name: '豆腐', amount: 1, unit: '丁', category: 'その他' }, { name: '鶏ひき肉', amount: 150, unit: 'g', category: '肉魚' }, { name: '玉ねぎ', amount: 0.5, unit: '個', category: '野菜' }], steps: ['材料を混ぜて成形する', 'フライパンで焼く', '蓋をして中まで火を通す'] },
+    { name: '豚バラと白菜のミルフィーユ鍋風', description: '野菜がたっぷり摂れる一品', protein: '豚バラ', cooking_time_min: 25, kid_note: '薄味で取り分けてから調整', ingredients: [{ name: '豚バラ肉', amount: 200, unit: 'g', category: '肉魚' }, { name: '白菜', amount: 0.25, unit: '個', category: '野菜' }, { name: 'だし', amount: 300, unit: 'ml', category: 'その他' }], steps: ['白菜と豚バラを交互に重ねる', '鍋に入れて煮る', 'だしで味を調える'] },
+    { name: '牛こまと野菜のオイスター炒め', description: 'ご飯が進む甘辛炒め', protein: '牛こま', cooking_time_min: 15, kid_note: 'オイスターソースは控えめに', ingredients: [{ name: '牛こま肉', amount: 200, unit: 'g', category: '肉魚' }, { name: 'ピーマン', amount: 2, unit: '個', category: '野菜' }, { name: 'オイスターソース', amount: 1, unit: '大さじ', category: 'その他' }], steps: ['牛肉を炒める', '野菜を加える', 'オイスターソースで味付け'] },
+    { name: '鶏もものレンジ照り焼き', description: 'レンジで簡単、フライパン不要', protein: '鶏もも', cooking_time_min: 15, kid_note: '甘めのタレで子どもも食べやすい', ingredients: [{ name: '鶏もも肉', amount: 1, unit: '枚', category: '肉魚' }, { name: '醤油', amount: 1, unit: '大さじ', category: 'その他' }, { name: 'みりん', amount: 1, unit: '大さじ', category: 'その他' }], steps: ['鶏肉をタレに漬ける', '耐熱皿にのせレンジ加熱', '照りが出るまで加熱を繰り返す'] },
+    { name: 'ひき肉（鶏）の野菜あんかけうどん', description: '体が温まる一品', protein: 'ひき肉（鶏）', cooking_time_min: 15, kid_note: '麺は短く切って食べやすく', ingredients: [{ name: '鶏ひき肉', amount: 100, unit: 'g', category: '肉魚' }, { name: 'うどん', amount: 2, unit: '玉', category: 'その他' }, { name: 'にんじん', amount: 0.5, unit: '本', category: '野菜' }], steps: ['ひき肉と野菜を煮る', 'とろみをつける', '茹でたうどんにかける'] },
+    { name: '今日のおまかせワンプレート', description: 'その日の気分に合わせた一品（デモ用サンプル）', protein: 'おまかせ', cooking_time_min: 15, kid_note: '取り分けやすい味付けにします', ingredients: [{ name: 'お好みの具材', amount: 1, unit: '式', category: 'その他' }], steps: ['お好みの材料で調理します'] }
+  ];
+
+  const GREETINGS = [
+    '今週も献立づくり、おつかれさまです。',
+    'お待たせしました。ゆっくり選んでくださいね。',
+    '今週分、考えてみました。無理のない範囲で選んでください。'
+  ];
+
+  function pickRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function shuffle(arr) {
+    return [...arr].sort(() => Math.random() - 0.5);
+  }
+
+  function pickMenus(n, excludeNames) {
+    const exclude = excludeNames || [];
+    const pool = MOCK_POOL.filter((m) => !exclude.includes(m.name));
+    const source = pool.length >= n ? pool : MOCK_POOL;
+    return shuffle(source).slice(0, n);
+  }
+
+  function generateMenusMock(currentConditions) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const count = currentConditions.count + 2;
+        resolve({
+          greeting: pickRandom(GREETINGS),
+          menus: pickMenus(count, []).map((m) => ({ ...m }))
+        });
+      }, 900 + Math.random() * 600);
+    });
+  }
+
+  function regenerateOneMock(excludeNames) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({ ...pickMenus(1, excludeNames)[0] });
+      }, 700 + Math.random() * 400);
+    });
+  }
+
+  // --- ここから実API呼び出し ---
+
+  function networkError(msg) {
+    const e = new Error(msg);
+    e.type = 'network';
+    return e;
+  }
+  function parseError(msg) {
+    const e = new Error(msg);
+    e.type = 'parse';
+    return e;
+  }
+
+  function getRecentAdoptedNames(days) {
+    const history = StorageService.get('adoptedHistory', []);
+    const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
+    return history.filter((item) => new Date(item.adoptedAt).getTime() >= cutoffMs).map((item) => item.menu.name);
+  }
+
+  function buildPrompt(currentConditions, appSettings, options) {
+    const opts = options || {};
+    const count = opts.count || (currentConditions.count + 2);
+
+    const proteinLines = Object.entries(currentConditions.proteinAllocation)
+      .filter(([, n]) => n > 0)
+      .map(([name, n]) => (name === OMAKASE_LABEL
+        ? `・${n}回分はタンパク質・料理ジャンルともにAIにおまかせ`
+        : `・${name}: ${n}回`))
+      .join('\n');
+
+    const tagsText = currentConditions.selectedTags.length > 0 ? currentConditions.selectedTags.join('、') : 'なし';
+    const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...(opts.excludeNames || [])])];
+    const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
+    const month = new Date().getMonth() + 1;
+
+    let prompt = [
+      'あなたは家庭料理の献立アドバイザーです。応答の冒頭（greetingフィールド）で一言、労い・共感の言葉を添えてください（絵文字は控えめに）。',
+      '',
+      '【家族プロフィール】',
+      appSettings.familyProfile,
+      '',
+      '【今回の条件】',
+      `・提案してほしい品数: ${count}品`,
+      '・タンパク質の内訳（回数指定分）:',
+      proteinLines || 'なし',
+      `・こだわりタグ: ${tagsText}`,
+      `・自由記入欄: ${currentConditions.freeText || 'なし'}`,
+      `・現在の月: ${month}月（旬の野菜の参考にしてください）`,
+      `・避けてほしい料理（直近14日に採用済み、または今回すでに提案済みのもの）: ${avoidText}`,
+      '',
+      '出力は指定のJSONスキーマのみで、それ以外の文章は含めないでください。'
+    ].join('\n');
+
+    if (opts.changeReason) {
+      prompt += `\n\n【差し替え理由】\n利用者から次の理由でこの1品だけ差し替えを希望されています:「${opts.changeReason}」。これを踏まえて別の1品を提案してください。`;
+    }
+
+    return prompt;
+  }
+
+  async function callGeminiAPI(promptText) {
+    const modelId = settings.modelId || DEFAULT_SETTINGS.modelId;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: promptText }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: GEMINI_RESPONSE_SCHEMA
+          }
+        })
+      });
+    } catch (err) {
+      throw networkError('通信に失敗しました: ' + err.message);
+    }
+
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => '');
+      throw networkError(`APIエラー（${res.status}）: ${bodyText.slice(0, 200)}`);
+    }
+
+    const data = await res.json();
+    const text = data && data.candidates && data.candidates[0] && data.candidates[0].content
+      && data.candidates[0].content.parts && data.candidates[0].content.parts[0]
+      && data.candidates[0].content.parts[0].text;
+    if (!text) throw parseError('応答にテキストが含まれていませんでした');
+
+    try {
+      return JSON.parse(text);
+    } catch (err) {
+      throw parseError('JSONの解析に失敗しました: ' + err.message);
+    }
+  }
+
+  async function callWithRetry(fn) {
+    try {
+      return await fn();
+    } catch (firstErr) {
+      console.error('Gemini呼び出しに失敗。1回だけリトライします:', firstErr);
+      return await fn();
+    }
+  }
+
+  function generateMenusReal(currentConditions) {
+    const prompt = buildPrompt(currentConditions, settings, { count: currentConditions.count + 2 });
+    return callWithRetry(() => callGeminiAPI(prompt));
+  }
+
+  async function regenerateOneReal(currentConditions, excludeNames, reason) {
+    const prompt = buildPrompt(currentConditions, settings, { count: 1, excludeNames, changeReason: reason });
+    const result = await callWithRetry(() => callGeminiAPI(prompt));
+    return (result.menus && result.menus[0]) || null;
+  }
+
+  // --- 公開インターフェース（demoModeで実装を切り替える） ---
+
+  function generateMenus(currentConditions) {
+    return settings.demoMode ? generateMenusMock(currentConditions) : generateMenusReal(currentConditions);
+  }
+
+  function regenerateOne(currentConditions, excludeNames, reason) {
+    return settings.demoMode ? regenerateOneMock(excludeNames) : regenerateOneReal(currentConditions, excludeNames, reason);
+  }
+
+  return { generateMenus, regenerateOne };
+})();
+
+// ==========================================================
+// 提案結果画面
+// ==========================================================
+const LOADING_MESSAGES = [
+  '今週もおつかれさまです。考えますね…',
+  'いい感じの献立、探していますね…',
+  '少々お待ちください、頭をひねっています…'
+];
+
+let currentMenus = [];
+
+function setResultsView(state) {
+  document.getElementById('results-loading').style.display = state === 'loading' ? 'block' : 'none';
+  document.getElementById('results-content').style.display = state === 'content' ? 'block' : 'none';
+  document.getElementById('results-error').style.display = state === 'error' ? 'block' : 'none';
+}
+
+function showResultsErrorMessage(err) {
+  setResultsView('error');
+  const message = err && err.type === 'parse'
+    ? 'うまく受け取れませんでした。もう一度だけ試させてください。'
+    : '通信がうまくいかなかったようです。少し時間をおいてもう一度お試しください。';
+  document.getElementById('results-error-message').textContent = message;
+}
+
+async function runGeneration() {
+  if (!settings.demoMode && !settings.apiKey) {
+    setResultsView('error');
+    document.getElementById('results-error-message').textContent = 'Gemini APIキーが設定されていません。設定画面から入力してください。';
+    return;
+  }
+
+  setResultsView('loading');
+  document.getElementById('loading-message').textContent = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+
+  try {
+    const result = await GeminiService.generateMenus(conditions);
+    currentMenus = result.menus;
+    document.getElementById('results-greeting').textContent = result.greeting;
+    renderMenuCards();
+    setResultsView('content');
+  } catch (err) {
+    console.error('献立生成に失敗しました:', err);
+    showResultsErrorMessage(err);
+  }
+}
+
+document.getElementById('btn-results-retry').addEventListener('click', () => runGeneration());
+document.getElementById('btn-results-to-settings').addEventListener('click', () => showScreen('settings'));
+
+function buildIngredientList(ingredients) {
+  const ul = document.createElement('ul');
+  ingredients.forEach((ing) => {
+    const li = document.createElement('li');
+    li.textContent = `${ing.name} ${ing.amount}${ing.unit}`;
+    ul.appendChild(li);
+  });
+  return ul;
+}
+
+function buildStepList(steps) {
+  const ol = document.createElement('ol');
+  steps.forEach((step) => {
+    const li = document.createElement('li');
+    li.textContent = step;
+    ol.appendChild(li);
+  });
+  return ol;
+}
+
+function buildMenuCard(menu, index) {
+  const card = document.createElement('div');
+  card.className = 'menu-card';
+
+  const head = document.createElement('div');
+  head.className = 'menu-card-head';
+  const title = document.createElement('h3');
+  title.textContent = menu.name;
+  head.appendChild(title);
+
+  const adoptLabel = document.createElement('label');
+  adoptLabel.className = 'adopt-toggle';
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'adopt-checkbox';
+  checkbox.addEventListener('change', updateConfirmButtonLabel);
+  const checkboxText = document.createElement('span');
+  checkboxText.textContent = '採用';
+  adoptLabel.appendChild(checkbox);
+  adoptLabel.appendChild(checkboxText);
+  head.appendChild(adoptLabel);
+  card.appendChild(head);
+
+  const desc = document.createElement('p');
+  desc.className = 'menu-desc';
+  desc.textContent = menu.description;
+  card.appendChild(desc);
+
+  const meta = document.createElement('div');
+  meta.className = 'menu-meta';
+  const proteinSpan = document.createElement('span');
+  proteinSpan.textContent = '🍳 ' + menu.protein;
+  const timeSpan = document.createElement('span');
+  timeSpan.textContent = '⏱ ' + menu.cooking_time_min + '分';
+  meta.appendChild(proteinSpan);
+  meta.appendChild(timeSpan);
+  card.appendChild(meta);
+
+  const kidNote = document.createElement('p');
+  kidNote.className = 'kid-note';
+  kidNote.textContent = '👶 ' + menu.kid_note;
+  card.appendChild(kidNote);
+
+  const ingDetails = document.createElement('details');
+  const ingSummary = document.createElement('summary');
+  ingSummary.textContent = `材料（${menu.ingredients.length}）`;
+  ingDetails.appendChild(ingSummary);
+  ingDetails.appendChild(buildIngredientList(menu.ingredients));
+  card.appendChild(ingDetails);
+
+  const stepDetails = document.createElement('details');
+  const stepSummary = document.createElement('summary');
+  stepSummary.textContent = `手順（${menu.steps.length}ステップ）`;
+  stepDetails.appendChild(stepSummary);
+  stepDetails.appendChild(buildStepList(menu.steps));
+  card.appendChild(stepDetails);
+
+  const actions = document.createElement('div');
+  actions.className = 'menu-card-actions';
+  const reasonInput = document.createElement('input');
+  reasonInput.type = 'text';
+  reasonInput.className = 'change-reason-input';
+  reasonInput.placeholder = '一言理由（任意）例: 豚こまのイメージだった';
+  const changeBtn = document.createElement('button');
+  changeBtn.type = 'button';
+  changeBtn.className = 'btn-small';
+  changeBtn.textContent = 'これは変えて';
+  changeBtn.addEventListener('click', () => regenerateCard(index, reasonInput.value, card));
+  actions.appendChild(reasonInput);
+  actions.appendChild(changeBtn);
+  card.appendChild(actions);
+
+  const changeHint = document.createElement('p');
+  changeHint.className = 'hint change-hint';
+  card.appendChild(changeHint);
+
+  return card;
+}
+
+function renderMenuCards() {
+  const container = document.getElementById('menu-cards');
+  container.innerHTML = '';
+  currentMenus.forEach((menu, index) => {
+    container.appendChild(buildMenuCard(menu, index));
+  });
+  updateConfirmButtonLabel();
+}
+
+function updateConfirmButtonLabel() {
+  const checked = document.querySelectorAll('.adopt-checkbox:checked').length;
+  const btn = document.getElementById('btn-confirm-adopt');
+  btn.textContent = `採用を確定（${checked}件）`;
+  btn.disabled = checked === 0;
+}
+
+async function regenerateCard(index, reason, cardEl) {
+  cardEl.classList.add('menu-card-loading');
+  const hint = cardEl.querySelector('.change-hint');
+  if (hint) hint.textContent = '';
+  try {
+    const excludeNames = currentMenus.map((m) => m.name);
+    const newMenu = await GeminiService.regenerateOne(conditions, excludeNames, reason);
+    if (!newMenu) throw new Error('差し替え候補が見つかりませんでした');
+    currentMenus[index] = newMenu;
+    renderMenuCards();
+  } catch (err) {
+    console.error('差し替えに失敗しました:', err);
+    cardEl.classList.remove('menu-card-loading');
+    if (hint) hint.textContent = 'うまく差し替えできませんでした。もう一度お試しください。';
+  }
+}
+
+document.getElementById('btn-regenerate-all').addEventListener('click', () => {
+  runGeneration();
+});
+
+document.getElementById('btn-confirm-adopt').addEventListener('click', () => {
+  const cardEls = document.querySelectorAll('#menu-cards .menu-card');
+  const adopted = [];
+  cardEls.forEach((cardEl, index) => {
+    const checkbox = cardEl.querySelector('.adopt-checkbox');
+    if (checkbox.checked) adopted.push(currentMenus[index]);
+  });
+  if (adopted.length === 0) return;
+  const history = StorageService.get('adoptedHistory', []);
+  const now = new Date().toISOString();
+  adopted.forEach((menu) => {
+    history.push({ adoptedAt: now, menu, rating: null });
+  });
+  StorageService.set('adoptedHistory', history);
+  showScreen('shopping');
+});
+
+// ==========================================================
+// ShoppingList: 材料の合算・分類ロジック（UIから独立した純粋関数群）
+// ==========================================================
+const ShoppingList = (() => {
+  function formatAmount(n) {
+    const rounded = Math.round(n * 100) / 100;
+    return String(rounded);
+  }
+
+  // 同一食材×同一単位を合算する。単位が異なる場合は別の行として残す（＝併記）
+  // どの料理で使うかを画面表示できるよう、由来レシピ名もsourcesに集約する
+  function mergeIngredients(menus) {
+    const map = new Map();
+    menus.forEach((menu) => {
+      menu.ingredients.forEach((ing) => {
+        const key = ing.name + '|' + ing.unit;
+        if (map.has(key)) {
+          const entry = map.get(key);
+          entry.amount += ing.amount;
+          if (!entry.sources.includes(menu.name)) entry.sources.push(menu.name);
+        } else {
+          map.set(key, { name: ing.name, unit: ing.unit, amount: ing.amount, category: ing.category, sources: [menu.name] });
+        }
+      });
+    });
+    return [...map.values()];
+  }
+
+  // 常備品リストに含まれる食材を分離し、残りをカテゴリ別（野菜／肉魚／その他）に振り分ける
+  function classify(menus, pantryStaples) {
+    const merged = mergeIngredients(menus);
+    const vegetables = [];
+    const meatFish = [];
+    const other = [];
+    const pantryMap = new Map(); // 単位違いでも同じ常備品名ならsourcesを統合する
+    merged.forEach((item) => {
+      if (pantryStaples.includes(item.name)) {
+        if (!pantryMap.has(item.name)) pantryMap.set(item.name, new Set());
+        item.sources.forEach((s) => pantryMap.get(item.name).add(s));
+      } else if (item.category === '野菜') {
+        vegetables.push(item);
+      } else if (item.category === '肉魚') {
+        meatFish.push(item);
+      } else {
+        other.push(item);
+      }
+    });
+    const pantry = [...pantryMap.entries()].map(([name, sourceSet]) => ({ name, sources: [...sourceSet] }));
+    return { vegetables, meatFish, other, pantry };
+  }
+
+  function buildShareText(list, menus) {
+    const lines = ['【今週の買い物リスト】'];
+    function addSection(title, items) {
+      if (items.length === 0) return;
+      lines.push('▼' + title);
+      items.forEach((item) => lines.push(`・${item.name} ${formatAmount(item.amount)}${item.unit}`));
+    }
+    addSection('野菜', list.vegetables);
+    addSection('肉・魚', list.meatFish);
+    addSection('その他', list.other);
+    if (list.pantry.length > 0) {
+      lines.push('▼常備品の確認');
+      lines.push('・' + list.pantry.map((p) => p.name).join('、'));
+    }
+    lines.push('');
+    lines.push('【今週の献立】');
+    menus.forEach((m) => lines.push(`・${m.name}`));
+    return lines.join('\n');
+  }
+
+  return { formatAmount, mergeIngredients, classify, buildShareText };
+})();
+
+// ==========================================================
+// 買い物リスト画面
+// ==========================================================
+let currentShoppingList = { vegetables: [], meatFish: [], other: [], pantry: [] };
+let currentShoppingMenus = [];
+
+// 直近で「採用を確定」した分だけを対象にする（同じadoptedAtを持つ最新バッチ）
+function getLatestBatchMenus() {
+  const history = StorageService.get('adoptedHistory', []);
+  if (history.length === 0) return [];
+  const latestAdoptedAt = history.reduce((max, item) => (item.adoptedAt > max ? item.adoptedAt : max), history[0].adoptedAt);
+  return history.filter((item) => item.adoptedAt === latestAdoptedAt).map((item) => item.menu);
+}
+
+function buildChecklistItem(labelText, subtitleText) {
+  const li = document.createElement('li');
+  const label = document.createElement('label');
+  label.className = 'shopping-item';
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+
+  const textWrap = document.createElement('div');
+  textWrap.className = 'shopping-item-text';
+  const span = document.createElement('span');
+  span.textContent = labelText;
+  textWrap.appendChild(span);
+  if (subtitleText) {
+    const sub = document.createElement('small');
+    sub.className = 'shopping-item-sub';
+    sub.textContent = subtitleText;
+    textWrap.appendChild(sub);
+  }
+
+  checkbox.addEventListener('change', () => {
+    span.classList.toggle('checked-off', checkbox.checked);
+  });
+  label.appendChild(checkbox);
+  label.appendChild(textWrap);
+  li.appendChild(label);
+  return li;
+}
+
+// formatterは { label, subtitle } を返す関数
+function renderShoppingSection(listElId, sectionElId, items, formatter) {
+  const ul = document.getElementById(listElId);
+  ul.innerHTML = '';
+  items.forEach((item) => {
+    const { label, subtitle } = formatter(item);
+    ul.appendChild(buildChecklistItem(label, subtitle));
+  });
+  document.getElementById(sectionElId).style.display = items.length ? 'block' : 'none';
+}
+
+function updateShareButtonsVisibility() {
+  const hasShare = typeof navigator.share === 'function';
+  document.getElementById('btn-share-line').style.display = hasShare ? 'block' : 'none';
+  document.getElementById('btn-copy-list').style.display = hasShare ? 'none' : 'block';
+}
+
+function renderShoppingScreen() {
+  const menus = getLatestBatchMenus();
+  const emptyCard = document.getElementById('shopping-empty');
+  const content = document.getElementById('shopping-content');
+
+  if (menus.length === 0) {
+    emptyCard.style.display = 'block';
+    content.style.display = 'none';
+    return;
+  }
+  emptyCard.style.display = 'none';
+  content.style.display = 'block';
+
+  const list = ShoppingList.classify(menus, settings.pantryStaples);
+  const amountFormatter = (i) => ({
+    label: `${i.name} ${ShoppingList.formatAmount(i.amount)}${i.unit}`,
+    subtitle: i.sources.join('・')
+  });
+  renderShoppingSection('list-shopping-vegetables', 'section-vegetables', list.vegetables, amountFormatter);
+  renderShoppingSection('list-shopping-meatfish', 'section-meatfish', list.meatFish, amountFormatter);
+  renderShoppingSection('list-shopping-other', 'section-other', list.other, amountFormatter);
+  renderShoppingSection('list-shopping-pantry', 'section-pantry', list.pantry, (p) => ({
+    label: p.name,
+    subtitle: p.sources.join('・')
+  }));
+
+  const menuUl = document.getElementById('list-shopping-menus');
+  menuUl.innerHTML = '';
+  menus.forEach((m) => {
+    const li = document.createElement('li');
+    li.textContent = m.name;
+    menuUl.appendChild(li);
+  });
+
+  document.getElementById('share-hint').textContent = '';
+  updateShareButtonsVisibility();
+  currentShoppingList = list;
+  currentShoppingMenus = menus;
+}
+
+document.getElementById('btn-share-line').addEventListener('click', async () => {
+  const text = ShoppingList.buildShareText(currentShoppingList, currentShoppingMenus);
+  try {
+    await navigator.share({ text });
+  } catch (err) {
+    // ユーザーによるキャンセルなどはそのままにしておく
+  }
+});
+
+document.getElementById('btn-copy-list').addEventListener('click', async () => {
+  const text = ShoppingList.buildShareText(currentShoppingList, currentShoppingMenus);
+  const hint = document.getElementById('share-hint');
+  try {
+    await navigator.clipboard.writeText(text);
+    hint.textContent = 'コピーしました。LINEなどに貼り付けてください。';
+  } catch (err) {
+    hint.textContent = 'コピーに失敗しました。もう一度お試しください。';
+  }
+});
+</script>
+</body>
+</html>
