@@ -41,7 +41,7 @@
   header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 14px 16px;
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
@@ -128,7 +128,7 @@
     margin: 8px 0 0;
     min-height: 1em;
   }
-  input[type="text"], input[type="password"], textarea {
+  input[type="text"], input[type="password"], input[type="date"], textarea {
     width: 100%;
     padding: 10px;
     border-radius: 8px;
@@ -416,18 +416,200 @@
     margin: 0 0 16px;
     line-height: 1.6;
   }
+  .date-assign-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .date-assign-name {
+    font-size: 14px;
+    flex: 1;
+  }
+  .date-assign-row input[type="date"] {
+    width: auto;
+    flex-shrink: 0;
+  }
+  .tab-bar {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    z-index: 10;
+  }
+  .tab-bar-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    padding: 8px 4px 10px;
+    font-size: 10px;
+    color: var(--color-text-sub);
+    cursor: pointer;
+  }
+  .tab-bar-btn .tab-icon { font-size: 20px; }
+  .tab-bar-btn.active {
+    color: var(--color-primary-dark);
+    font-weight: 700;
+  }
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 12px;
+  }
+  .calendar-header h2 { font-size: 16px; margin: 0; }
+  .calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 11px;
+    color: var(--color-text-sub);
+    margin-bottom: 4px;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .calendar-cell {
+    min-height: 56px;
+    border-radius: 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 4px;
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+  }
+  .calendar-cell-blank { background: transparent; border: none; }
+  .calendar-day-num { font-size: 11px; color: var(--color-text-sub); }
+  .calendar-today .calendar-day-num { color: var(--color-primary-dark); font-weight: 700; }
+  .calendar-has-menu { cursor: pointer; border-color: var(--color-primary); }
+  .calendar-menu-label {
+    font-size: 10px;
+    color: var(--color-text);
+    margin-top: 2px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.2;
+  }
+  .day-detail-move-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .day-detail-move-row input { width: auto; flex: 1; }
+  .today-menu-card {
+    cursor: pointer;
+    border: 1px solid var(--color-primary);
+  }
+  .today-menu-label {
+    font-size: 11px;
+    color: var(--color-primary-dark);
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .today-menu-card h2 {
+    margin: 0 0 6px;
+    font-size: 17px;
+  }
+  .rating-prompt-card p {
+    font-size: 13px;
+    color: var(--color-text-sub);
+    margin: 0 0 10px;
+  }
+  .rating-prompt-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .rating-prompt-actions .btn-small {
+    flex: 1;
+    text-align: center;
+  }
+  .rating-section {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border);
+  }
+  .star-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .star-btn {
+    background: none;
+    border: none;
+    font-size: 26px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    color: #d8cfc3;
+  }
+  .star-btn.star-filled { color: var(--color-primary); }
+  .library-sort-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .segmented {
+    display: flex;
+    border: 1px solid var(--color-primary);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .segmented-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--color-surface);
+    color: var(--color-primary-dark);
+    border: none;
+    cursor: pointer;
+  }
+  .segmented-btn.active {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .library-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .library-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .library-row-name { font-size: 14px; font-weight: 700; }
+  .library-row-meta { font-size: 12px; color: var(--color-text-sub); }
+  .library-row-stars {
+    font-size: 14px;
+    color: var(--color-primary);
+    white-space: nowrap;
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <header>
     <h1 id="header-title">おまかせこんだてくん</h1>
-    <button class="icon-btn" id="btn-open-settings" aria-label="設定を開く">⚙️</button>
   </header>
 
   <main>
     <!-- ホーム（条件選択）画面 -->
     <section class="screen active" id="screen-home">
+      <div id="today-menu-card-container"></div>
+      <div id="rating-prompt-card-container"></div>
+
       <p class="home-greeting">今週も献立づくり、おつかれさまです。焦らなくて大丈夫です、無理のない範囲で選んでくださいね。</p>
 
       <div class="card">
@@ -480,10 +662,23 @@
       </div>
     </section>
 
+    <!-- 日付割り当て画面 -->
+    <section class="screen" id="screen-dateAssign">
+      <button class="back-link" id="btn-date-assign-back">← 結果に戻る</button>
+
+      <div class="card">
+        <h2>いつ作るか、決めましょう</h2>
+        <p>今日から順に仮の日付を入れています。外食日などはタップして変更してください。</p>
+      </div>
+
+      <div id="date-assign-list"></div>
+
+      <p class="hint" id="date-assign-validation"></p>
+      <button class="btn" id="btn-date-assign-confirm" disabled>この並びで確定</button>
+    </section>
+
     <!-- 買い物リスト画面 -->
     <section class="screen" id="screen-shopping">
-      <button class="back-link" id="btn-shopping-back">← ホームへ戻る</button>
-
       <div class="card" id="shopping-empty" style="display:none;">
         <p>まだ買い物リストがありません。まずはホームから献立を採用してください。</p>
       </div>
@@ -519,8 +714,6 @@
 
     <!-- 設定画面 -->
     <section class="screen" id="screen-settings">
-      <button class="back-link" id="btn-settings-back">← ホームへ戻る</button>
-
       <div class="card">
         <h2>Gemini APIキー</h2>
         <div class="input-row">
@@ -588,7 +781,61 @@
         <p class="hint" id="import-hint"></p>
       </div>
     </section>
+
+    <!-- カレンダー画面 -->
+    <section class="screen" id="screen-calendar">
+      <div id="calendar-grid-view">
+        <div class="calendar-header">
+          <button class="icon-btn" id="btn-calendar-prev-month" aria-label="前月">‹</button>
+          <h2 id="calendar-month-label">-</h2>
+          <button class="icon-btn" id="btn-calendar-next-month" aria-label="翌月">›</button>
+        </div>
+        <div class="calendar-weekdays">
+          <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+      </div>
+
+      <div id="calendar-day-detail" style="display:none;">
+        <button class="back-link" id="btn-calendar-day-detail-close">← カレンダーに戻る</button>
+        <div id="calendar-day-detail-content"></div>
+      </div>
+    </section>
+
+    <!-- 料理ライブラリ画面 -->
+    <section class="screen" id="screen-library">
+      <div id="library-list-view">
+        <div class="card">
+          <div class="library-sort-row">
+            <span class="hint">並び順</span>
+            <div class="segmented" id="library-sort-toggle">
+              <button type="button" class="segmented-btn active" data-sort="recent">新しい順</button>
+              <button type="button" class="segmented-btn" data-sort="rating">星の高い順</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="library-empty" style="display:none;">
+          <p>まだ作った料理がありません。献立を採用すると、ここに記録されていきます。</p>
+        </div>
+
+        <div id="library-list"></div>
+      </div>
+
+      <div id="library-detail" style="display:none;">
+        <button class="back-link" id="btn-library-detail-close">← ライブラリに戻る</button>
+        <div id="library-detail-content"></div>
+      </div>
+    </section>
   </main>
+
+  <nav class="tab-bar" id="tab-bar">
+    <button class="tab-bar-btn" data-screen="home"><span class="tab-icon">🏠</span><span>ホーム</span></button>
+    <button class="tab-bar-btn" data-screen="calendar"><span class="tab-icon">📅</span><span>カレンダー</span></button>
+    <button class="tab-bar-btn" data-screen="library"><span class="tab-icon">📚</span><span>ライブラリ</span></button>
+    <button class="tab-bar-btn" data-screen="shopping"><span class="tab-icon">🛒</span><span>買い物</span></button>
+    <button class="tab-bar-btn" data-screen="settings"><span class="tab-icon">⚙️</span><span>設定</span></button>
+  </nav>
 </div>
 
 <script>
@@ -649,9 +896,47 @@ const StorageService = (() => {
 })();
 
 // ==========================================================
+// 日付ユーティリティ（ローカルタイムゾーンのYYYY-MM-DD）
+// ==========================================================
+function formatDateLocal(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ==========================================================
+// Phase 2データマイグレーション
+// Phase 1で保存されたadoptedHistoryにはplannedDate/ratingMemoが無いため、
+// 起動時に1回だけ補完する（plannedDate ← adoptedAtの日付部分、ratingMemo ← ''）
+// ==========================================================
+(function migrateAdoptedHistory() {
+  const history = StorageService.get('adoptedHistory', []);
+  if (history.length === 0) return;
+  let changed = false;
+  const migrated = history.map((item) => {
+    const next = { ...item };
+    if (!next.plannedDate) {
+      next.plannedDate = formatDateLocal(new Date(item.adoptedAt));
+      changed = true;
+    }
+    if (next.ratingMemo === undefined) {
+      next.ratingMemo = '';
+      changed = true;
+    }
+    return next;
+  });
+  if (changed) {
+    StorageService.set('adoptedHistory', migrated);
+  }
+})();
+
+// ==========================================================
 // UI: 画面遷移の管理
 // ==========================================================
-const SCREENS = ['home', 'results', 'shopping', 'settings'];
+const SCREENS = ['home', 'results', 'dateAssign', 'calendar', 'library', 'shopping', 'settings'];
+// 下部タブに常設される画面（提案結果・日付割り当ては遷移画面のためタブなし）
+const TAB_SCREENS = ['home', 'calendar', 'library', 'shopping', 'settings'];
 
 function showScreen(name) {
   SCREENS.forEach((s) => {
@@ -661,15 +946,35 @@ function showScreen(name) {
   if (name === 'home' && typeof renderConditionsScreen === 'function') {
     renderConditionsScreen();
   }
+  if (name === 'home' && typeof renderTodayCard === 'function') {
+    renderTodayCard();
+  }
+  if (name === 'home' && typeof renderRatingPromptCard === 'function') {
+    renderRatingPromptCard();
+  }
   if (name === 'shopping' && typeof renderShoppingScreen === 'function') {
     renderShoppingScreen();
   }
+  if (name === 'calendar' && typeof renderCalendarScreen === 'function') {
+    hideDayDetail();
+    renderCalendarScreen();
+  }
+  if (name === 'library' && typeof renderLibraryScreen === 'function') {
+    closeLibraryDetail();
+    renderLibraryScreen();
+  }
+
+  const isTabScreen = TAB_SCREENS.includes(name);
+  document.getElementById('tab-bar').style.display = isTabScreen ? 'flex' : 'none';
+  document.querySelectorAll('.tab-bar-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.screen === name);
+  });
 }
 
-document.getElementById('btn-open-settings').addEventListener('click', () => showScreen('settings'));
+document.querySelectorAll('.tab-bar-btn').forEach((btn) => {
+  btn.addEventListener('click', () => showScreen(btn.dataset.screen));
+});
 document.getElementById('btn-results-back').addEventListener('click', () => showScreen('home'));
-document.getElementById('btn-shopping-back').addEventListener('click', () => showScreen('home'));
-document.getElementById('btn-settings-back').addEventListener('click', () => showScreen('home'));
 
 // ==========================================================
 // 設定画面: 初期値・読み込み・保存
@@ -1436,12 +1741,101 @@ document.getElementById('btn-confirm-adopt').addEventListener('click', () => {
     if (checkbox.checked) adopted.push(currentMenus[index]);
   });
   if (adopted.length === 0) return;
+  dateAssignReturnScreen = 'results';
+  startDateAssignment(adopted);
+  showScreen('dateAssign');
+});
+
+// ==========================================================
+// 日付割り当て画面
+// ==========================================================
+let pendingAdoption = []; // [{ menu, plannedDate }]
+let dateAssignReturnScreen = 'results'; // 「戻る」の遷移先（結果画面 or ライブラリ）
+
+function getExistingPlannedDates() {
+  return new Set(StorageService.get('adoptedHistory', []).map((item) => item.plannedDate).filter(Boolean));
+}
+
+// 今日から順に、既存の予定と重ならない日付を自動で割り当てる
+function computeAutoDates(count) {
+  const used = getExistingPlannedDates();
+  const dates = [];
+  const cursor = new Date();
+  while (dates.length < count) {
+    const ds = formatDateLocal(cursor);
+    if (!used.has(ds) && !dates.includes(ds)) dates.push(ds);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+function startDateAssignment(menus) {
+  const autoDates = computeAutoDates(menus.length);
+  pendingAdoption = menus.map((menu, i) => ({ menu, plannedDate: autoDates[i] }));
+  renderDateAssignScreen();
+}
+
+function renderDateAssignScreen() {
+  const container = document.getElementById('date-assign-list');
+  container.innerHTML = '';
+  pendingAdoption.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'card date-assign-row';
+
+    const name = document.createElement('div');
+    name.className = 'date-assign-name';
+    name.textContent = item.menu.name;
+    row.appendChild(name);
+
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = item.plannedDate;
+    input.addEventListener('change', () => {
+      pendingAdoption[index].plannedDate = input.value;
+      validateDateAssignment();
+    });
+    row.appendChild(input);
+
+    container.appendChild(row);
+  });
+  validateDateAssignment();
+}
+
+function validateDateAssignment() {
+  const hint = document.getElementById('date-assign-validation');
+  const confirmBtn = document.getElementById('btn-date-assign-confirm');
+  const dates = pendingAdoption.map((item) => item.plannedDate);
+
+  if (dates.some((d) => !d)) {
+    hint.textContent = 'すべての行に日付を入力してください。';
+    confirmBtn.disabled = true;
+    return;
+  }
+
+  const hasInternalDup = new Set(dates).size !== dates.length;
+  const existing = getExistingPlannedDates();
+  const hasExistingConflict = dates.some((d) => existing.has(d));
+
+  if (hasInternalDup || hasExistingConflict) {
+    hint.textContent = '同じ日に複数の献立は割り当てられません。日付を調整してください。';
+    confirmBtn.disabled = true;
+    return;
+  }
+
+  hint.textContent = '';
+  confirmBtn.disabled = false;
+}
+
+document.getElementById('btn-date-assign-back').addEventListener('click', () => showScreen(dateAssignReturnScreen));
+
+document.getElementById('btn-date-assign-confirm').addEventListener('click', () => {
   const history = StorageService.get('adoptedHistory', []);
   const now = new Date().toISOString();
-  adopted.forEach((menu) => {
-    history.push({ adoptedAt: now, menu, rating: null });
+  pendingAdoption.forEach((item) => {
+    history.push({ adoptedAt: now, plannedDate: item.plannedDate, rating: null, ratingMemo: '', menu: item.menu });
   });
   StorageService.set('adoptedHistory', history);
+  pendingAdoption = [];
   showScreen('shopping');
 });
 
@@ -1637,6 +2031,494 @@ document.getElementById('btn-copy-list').addEventListener('click', async () => {
     hint.textContent = 'コピーに失敗しました。もう一度お試しください。';
   }
 });
+
+// ==========================================================
+// ホーム画面: 今日の献立カード
+// ==========================================================
+function getTodayEntries() {
+  const todayStr = formatDateLocal(new Date());
+  return getPlannedByDate().get(todayStr) || [];
+}
+
+function renderTodayCard() {
+  const container = document.getElementById('today-menu-card-container');
+  container.innerHTML = '';
+
+  const entries = getTodayEntries();
+  entries.forEach(({ item }) => {
+    const card = document.createElement('div');
+    card.className = 'card today-menu-card';
+    card.addEventListener('click', () => {
+      showScreen('calendar');
+      openDayDetail(formatDateLocal(new Date()));
+    });
+
+    const label = document.createElement('p');
+    label.className = 'today-menu-label';
+    label.textContent = '今日の献立';
+    card.appendChild(label);
+
+    const name = document.createElement('h2');
+    name.textContent = item.menu.name;
+    card.appendChild(name);
+
+    const meta = document.createElement('p');
+    meta.className = 'menu-meta';
+    meta.textContent = `⏱ ${item.menu.cooking_time_min}分`;
+    card.appendChild(meta);
+
+    container.appendChild(card);
+  });
+}
+
+// ==========================================================
+// ホーム画面: 未評価の催促カード（昨日以前の未評価が1件以上あるとき、1日1回だけ表示）
+// ==========================================================
+function getUnratedPastEntries() {
+  const todayStr = formatDateLocal(new Date());
+  const history = StorageService.get('adoptedHistory', []);
+  return history
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.plannedDate && item.plannedDate < todayStr && item.rating === null)
+    .sort((a, b) => (a.item.plannedDate < b.item.plannedDate ? 1 : -1));
+}
+
+function renderRatingPromptCard() {
+  const container = document.getElementById('rating-prompt-card-container');
+  container.innerHTML = '';
+
+  const todayStr = formatDateLocal(new Date());
+  if (StorageService.get('ratingPromptShownDate', null) === todayStr) return;
+
+  const candidates = getUnratedPastEntries();
+  if (candidates.length === 0) return;
+
+  const { item } = candidates[0];
+  const yesterdayStr = formatDateLocal(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const dayLabel = item.plannedDate === yesterdayStr ? '昨日' : '先日';
+
+  const card = document.createElement('div');
+  card.className = 'card rating-prompt-card';
+
+  const text = document.createElement('p');
+  text.textContent = `${dayLabel}の${item.menu.name}、どうでしたか？`;
+  card.appendChild(text);
+
+  const actions = document.createElement('div');
+  actions.className = 'rating-prompt-actions';
+
+  const rateBtn = document.createElement('button');
+  rateBtn.type = 'button';
+  rateBtn.className = 'btn-small';
+  rateBtn.textContent = '評価する';
+  rateBtn.addEventListener('click', () => {
+    showScreen('calendar');
+    openDayDetail(item.plannedDate);
+  });
+  actions.appendChild(rateBtn);
+
+  const skipBtn = document.createElement('button');
+  skipBtn.type = 'button';
+  skipBtn.className = 'btn-small';
+  skipBtn.textContent = 'スキップ';
+  skipBtn.addEventListener('click', () => {
+    container.innerHTML = '';
+  });
+  actions.appendChild(skipBtn);
+
+  card.appendChild(actions);
+  container.appendChild(card);
+
+  StorageService.set('ratingPromptShownDate', todayStr);
+}
+
+// ==========================================================
+// カレンダー画面
+// ==========================================================
+let calendarViewDate = new Date(); // 表示中の月を表す日付（日は使わない）
+
+function getPlannedByDate() {
+  const history = StorageService.get('adoptedHistory', []);
+  const map = new Map(); // dateStr -> [{ index, item }]
+  history.forEach((item, index) => {
+    if (!item.plannedDate) return;
+    if (!map.has(item.plannedDate)) map.set(item.plannedDate, []);
+    map.get(item.plannedDate).push({ index, item });
+  });
+  return map;
+}
+
+function renderCalendarScreen() {
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+  document.getElementById('calendar-month-label').textContent = `${year}年${month + 1}月`;
+
+  const plannedByDate = getPlannedByDate();
+  const todayStr = formatDateLocal(new Date());
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < firstWeekday; i++) {
+    const blank = document.createElement('div');
+    blank.className = 'calendar-cell calendar-cell-blank';
+    grid.appendChild(blank);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = formatDateLocal(new Date(year, month, day));
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell';
+    if (dateStr === todayStr) cell.classList.add('calendar-today');
+
+    const dayNum = document.createElement('div');
+    dayNum.className = 'calendar-day-num';
+    dayNum.textContent = String(day);
+    cell.appendChild(dayNum);
+
+    const entries = plannedByDate.get(dateStr);
+    if (entries && entries.length > 0) {
+      cell.classList.add('calendar-has-menu');
+      const label = document.createElement('div');
+      label.className = 'calendar-menu-label';
+      label.textContent = entries.map((e) => e.item.menu.name).join('・');
+      cell.appendChild(label);
+      cell.addEventListener('click', () => openDayDetail(dateStr));
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+function openDayDetail(dateStr) {
+  const entries = getPlannedByDate().get(dateStr) || [];
+  if (entries.length === 0) return;
+
+  const content = document.getElementById('calendar-day-detail-content');
+  content.innerHTML = '';
+  entries.forEach(({ index, item }) => {
+    content.appendChild(buildDayDetailCard(dateStr, index, item));
+  });
+
+  document.getElementById('calendar-grid-view').style.display = 'none';
+  document.getElementById('calendar-day-detail').style.display = 'block';
+}
+
+function hideDayDetail() {
+  document.getElementById('calendar-day-detail').style.display = 'none';
+  document.getElementById('calendar-day-detail-content').innerHTML = '';
+  document.getElementById('calendar-grid-view').style.display = 'block';
+}
+
+function moveMenuToDate(historyIndex, newDateStr) {
+  const history = StorageService.get('adoptedHistory', []);
+  const conflict = history.some((h, i) => i !== historyIndex && h.plannedDate === newDateStr);
+  if (conflict) {
+    return { ok: false, message: 'その日にはすでに他の献立が割り当てられています。' };
+  }
+  history[historyIndex].plannedDate = newDateStr;
+  StorageService.set('adoptedHistory', history);
+  return { ok: true };
+}
+
+function unassignMenu(historyIndex) {
+  const history = StorageService.get('adoptedHistory', []);
+  history[historyIndex].plannedDate = null;
+  StorageService.set('adoptedHistory', history);
+}
+
+function setRating(historyIndex, rating) {
+  const history = StorageService.get('adoptedHistory', []);
+  history[historyIndex].rating = rating;
+  StorageService.set('adoptedHistory', history);
+}
+
+function setRatingMemo(historyIndex, memo) {
+  const history = StorageService.get('adoptedHistory', []);
+  history[historyIndex].ratingMemo = memo;
+  StorageService.set('adoptedHistory', history);
+}
+
+function buildRatingSection(dateStr, historyIndex, item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'rating-section';
+
+  const label = document.createElement('p');
+  label.className = 'hint';
+  label.textContent = '評価';
+  wrap.appendChild(label);
+
+  const starRow = document.createElement('div');
+  starRow.className = 'star-row';
+  for (let i = 1; i <= 5; i++) {
+    const starBtn = document.createElement('button');
+    starBtn.type = 'button';
+    const filled = !!item.rating && i <= item.rating;
+    starBtn.className = 'star-btn' + (filled ? ' star-filled' : '');
+    starBtn.textContent = filled ? '★' : '☆';
+    starBtn.setAttribute('aria-label', `${i}`);
+    starBtn.addEventListener('click', () => {
+      setRating(historyIndex, i);
+      openDayDetail(dateStr); // 星の状態を反映するため再描画（詳細画面は開いたまま）
+    });
+    starRow.appendChild(starBtn);
+  }
+  wrap.appendChild(starRow);
+
+  const memoInput = document.createElement('textarea');
+  memoInput.rows = 2;
+  memoInput.placeholder = '例: 子どもがよく食べた／ちょっと辛すぎた';
+  memoInput.value = item.ratingMemo || '';
+  memoInput.addEventListener('input', () => {
+    setRatingMemo(historyIndex, memoInput.value);
+  });
+  wrap.appendChild(memoInput);
+
+  return wrap;
+}
+
+function buildDayDetailCard(dateStr, historyIndex, item) {
+  const menu = item.menu;
+  const card = document.createElement('div');
+  card.className = 'card day-detail-card';
+
+  const title = document.createElement('h3');
+  title.textContent = menu.name;
+  card.appendChild(title);
+
+  const desc = document.createElement('p');
+  desc.className = 'menu-desc';
+  desc.textContent = menu.description;
+  card.appendChild(desc);
+
+  const kidNote = document.createElement('p');
+  kidNote.className = 'kid-note';
+  kidNote.textContent = '👶 ' + menu.kid_note;
+  card.appendChild(kidNote);
+
+  const ingDetails = document.createElement('details');
+  const ingSummary = document.createElement('summary');
+  ingSummary.textContent = `材料（${menu.ingredients.length}）`;
+  ingDetails.appendChild(ingSummary);
+  ingDetails.appendChild(buildIngredientList(menu.ingredients));
+  card.appendChild(ingDetails);
+
+  const stepDetails = document.createElement('details');
+  const stepSummary = document.createElement('summary');
+  stepSummary.textContent = `手順（${menu.steps.length}ステップ）`;
+  stepDetails.appendChild(stepSummary);
+  stepDetails.appendChild(buildStepList(menu.steps));
+  card.appendChild(stepDetails);
+
+  card.appendChild(buildRatingSection(dateStr, historyIndex, item));
+
+  const moveRow = document.createElement('div');
+  moveRow.className = 'day-detail-move-row';
+  const moveLabel = document.createElement('span');
+  moveLabel.textContent = '別の日へ移動:';
+  const moveInput = document.createElement('input');
+  moveInput.type = 'date';
+  moveInput.value = dateStr;
+  moveRow.appendChild(moveLabel);
+  moveRow.appendChild(moveInput);
+  card.appendChild(moveRow);
+
+  const moveHint = document.createElement('p');
+  moveHint.className = 'hint';
+  card.appendChild(moveHint);
+
+  moveInput.addEventListener('change', () => {
+    const result = moveMenuToDate(historyIndex, moveInput.value);
+    if (result.ok) {
+      renderCalendarScreen();
+      hideDayDetail();
+    } else {
+      moveHint.textContent = result.message;
+      moveInput.value = dateStr;
+    }
+  });
+
+  const unassignBtn = document.createElement('button');
+  unassignBtn.type = 'button';
+  unassignBtn.className = 'btn btn-outline';
+  unassignBtn.textContent = '割り当てを解除';
+  unassignBtn.addEventListener('click', () => {
+    unassignMenu(historyIndex);
+    renderCalendarScreen();
+    hideDayDetail();
+  });
+  card.appendChild(unassignBtn);
+
+  return card;
+}
+
+document.getElementById('btn-calendar-prev-month').addEventListener('click', () => {
+  calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
+  renderCalendarScreen();
+});
+document.getElementById('btn-calendar-next-month').addEventListener('click', () => {
+  calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+  renderCalendarScreen();
+});
+document.getElementById('btn-calendar-day-detail-close').addEventListener('click', () => hideDayDetail());
+
+// ==========================================================
+// 料理ライブラリ画面
+// ==========================================================
+let librarySortMode = 'recent'; // 'recent' | 'rating'
+
+// adoptedHistoryを料理名でグルーピングし、最後に作った日が最新のものを代表として使う
+function getLibraryEntries() {
+  const history = StorageService.get('adoptedHistory', []);
+  const groups = new Map();
+  history.forEach((item) => {
+    const name = item.menu.name;
+    const madeDate = item.plannedDate || formatDateLocal(new Date(item.adoptedAt));
+    const existing = groups.get(name);
+    if (!existing || madeDate > existing.lastMadeDate) {
+      groups.set(name, { menu: item.menu, rating: item.rating, lastMadeDate: madeDate });
+    }
+  });
+  return [...groups.values()];
+}
+
+function sortLibraryEntries(entries, mode) {
+  const sorted = [...entries];
+  if (mode === 'rating') {
+    sorted.sort((a, b) => {
+      const ar = a.rating === null ? -1 : a.rating;
+      const br = b.rating === null ? -1 : b.rating;
+      return br - ar; // 星が高い順、未評価（-1）は末尾
+    });
+  } else {
+    sorted.sort((a, b) => (a.lastMadeDate < b.lastMadeDate ? 1 : -1)); // 新しい順
+  }
+  return sorted;
+}
+
+function renderLibraryScreen() {
+  const entries = sortLibraryEntries(getLibraryEntries(), librarySortMode);
+  const listEl = document.getElementById('library-list');
+  const emptyEl = document.getElementById('library-empty');
+  listEl.innerHTML = '';
+
+  if (entries.length === 0) {
+    emptyEl.style.display = 'block';
+    listEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  listEl.style.display = 'block';
+
+  entries.forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'card library-row';
+    row.addEventListener('click', () => openLibraryDetail(entry.menu.name));
+
+    const main = document.createElement('div');
+    main.className = 'library-row-main';
+    const name = document.createElement('div');
+    name.className = 'library-row-name';
+    name.textContent = entry.menu.name;
+    main.appendChild(name);
+    const meta = document.createElement('div');
+    meta.className = 'library-row-meta';
+    meta.textContent = `最後に作った日: ${entry.lastMadeDate}`;
+    main.appendChild(meta);
+    row.appendChild(main);
+
+    const stars = document.createElement('div');
+    stars.className = 'library-row-stars';
+    stars.textContent = entry.rating ? '★'.repeat(entry.rating) + '☆'.repeat(5 - entry.rating) : '未評価';
+    row.appendChild(stars);
+
+    listEl.appendChild(row);
+  });
+}
+
+function reAdoptMenu(menu) {
+  const cloned = JSON.parse(JSON.stringify(menu));
+  dateAssignReturnScreen = 'library';
+  startDateAssignment([cloned]);
+  showScreen('dateAssign');
+}
+
+function buildLibraryDetailCard(entry) {
+  const menu = entry.menu;
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const title = document.createElement('h3');
+  title.textContent = menu.name;
+  card.appendChild(title);
+
+  const desc = document.createElement('p');
+  desc.className = 'menu-desc';
+  desc.textContent = menu.description;
+  card.appendChild(desc);
+
+  const kidNote = document.createElement('p');
+  kidNote.className = 'kid-note';
+  kidNote.textContent = '👶 ' + menu.kid_note;
+  card.appendChild(kidNote);
+
+  const ingDetails = document.createElement('details');
+  const ingSummary = document.createElement('summary');
+  ingSummary.textContent = `材料（${menu.ingredients.length}）`;
+  ingDetails.appendChild(ingSummary);
+  ingDetails.appendChild(buildIngredientList(menu.ingredients));
+  card.appendChild(ingDetails);
+
+  const stepDetails = document.createElement('details');
+  const stepSummary = document.createElement('summary');
+  stepSummary.textContent = `手順（${menu.steps.length}ステップ）`;
+  stepDetails.appendChild(stepSummary);
+  stepDetails.appendChild(buildStepList(menu.steps));
+  card.appendChild(stepDetails);
+
+  const againBtn = document.createElement('button');
+  againBtn.type = 'button';
+  againBtn.className = 'btn';
+  againBtn.textContent = 'もう一度作る';
+  againBtn.addEventListener('click', () => reAdoptMenu(menu));
+  card.appendChild(againBtn);
+
+  return card;
+}
+
+function openLibraryDetail(name) {
+  const entry = getLibraryEntries().find((e) => e.menu.name === name);
+  if (!entry) return;
+
+  const content = document.getElementById('library-detail-content');
+  content.innerHTML = '';
+  content.appendChild(buildLibraryDetailCard(entry));
+
+  document.getElementById('library-list-view').style.display = 'none';
+  document.getElementById('library-detail').style.display = 'block';
+}
+
+function closeLibraryDetail() {
+  document.getElementById('library-detail').style.display = 'none';
+  document.getElementById('library-detail-content').innerHTML = '';
+  document.getElementById('library-list-view').style.display = 'block';
+}
+
+document.querySelectorAll('#library-sort-toggle .segmented-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    librarySortMode = btn.dataset.sort;
+    document.querySelectorAll('#library-sort-toggle .segmented-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    renderLibraryScreen();
+  });
+});
+document.getElementById('btn-library-detail-close').addEventListener('click', () => closeLibraryDetail());
+
+// ==========================================================
+// 初期画面の確定(タブバーのアクティブ状態を含めてホームで初期化)
+// ==========================================================
+showScreen('home');
 </script>
 </body>
 </html>
