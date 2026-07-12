@@ -318,6 +318,12 @@
     white-space: nowrap;
   }
   .adopt-toggle input { width: 18px; height: 18px; }
+  .menu-protein-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    margin: 2px 0 6px;
+  }
   .menu-desc { font-size: 13px; color: var(--color-text-sub); margin: 6px 0; }
   .menu-meta {
     display: flex;
@@ -489,7 +495,19 @@
   .calendar-cell-blank { background: transparent; border: none; }
   .calendar-day-num { font-size: 11px; color: var(--color-text-sub); }
   .calendar-today .calendar-day-num { color: var(--color-primary-dark); font-weight: 700; }
-  .calendar-has-menu { cursor: pointer; border-color: var(--color-primary); }
+  .calendar-clickable { cursor: pointer; }
+  .calendar-has-menu { border-color: var(--color-primary); }
+  .calendar-note-label {
+    font-size: 10px;
+    color: var(--color-text-sub);
+    font-style: italic;
+    margin-top: 2px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.2;
+  }
   .calendar-menu-label {
     font-size: 10px;
     color: var(--color-text);
@@ -706,8 +724,9 @@
           <ul class="menu-name-list" id="list-shopping-menus"></ul>
         </div>
 
-        <button class="btn" id="btn-share-line">LINEに送る</button>
-        <button class="btn btn-outline" id="btn-copy-list" style="display:none;">コピーする</button>
+        <button class="btn" id="btn-share-line" style="display:none;">共有する（LINE・メモなど）</button>
+        <button class="btn btn-outline" id="btn-copy-list" style="display:none;">コピーする（既存のメモに貼り付ける場合）</button>
+        <p class="hint">「共有する」→「メモ」を選ぶと新規メモとして保存されます。「食料品」など既存のメモに追記したい場合は、コピーしてメモアプリ側で貼り付けてください。</p>
         <p class="hint" id="share-hint"></p>
       </div>
     </section>
@@ -845,7 +864,7 @@
 (function setupPWA() {
   const iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">'
     + '<rect width="512" height="512" rx="96" fill="#e08a4f"/>'
-    + '<text x="256" y="300" font-size="260" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">🍱</text>'
+    + '<text x="256" y="300" font-size="260" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">🍳</text>'
     + '</svg>';
   const iconDataUri = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
 
@@ -1211,6 +1230,17 @@ function renderCountSelector() {
 
 const OMAKASE_LABEL = 'おまかせ';
 
+// proteinAllocationを「1品ごとの要求タンパク質」の配列に展開する（例: {鶏むね:2,豚こま:1} → ['鶏むね','鶏むね','豚こま']）
+// totalCountに満たない残りはnull（自由枠）で埋める
+function expandProteinSlots(proteinAllocation, totalCount) {
+  const slots = [];
+  Object.entries(proteinAllocation).forEach(([name, n]) => {
+    for (let i = 0; i < n; i++) slots.push(name);
+  });
+  while (slots.length < totalCount) slots.push(null);
+  return slots.slice(0, totalCount);
+}
+
 function appendAllocationRow(ul, name, isOmakase) {
   const li = document.createElement('li');
   if (isOmakase) li.classList.add('alloc-omakase');
@@ -1395,22 +1425,35 @@ const GeminiService = (() => {
     return shuffle(source).slice(0, n);
   }
 
-  function generateMenusMock(currentConditions) {
+  // 指定タンパク質のモックを優先的に選ぶ（該当が無ければ通常のランダム選出にフォールバック）
+  function pickMenuForProtein(proteinName, excludeNames) {
+    const exclude = excludeNames || [];
+    if (!proteinName || proteinName === OMAKASE_LABEL) {
+      return pickMenus(1, exclude)[0];
+    }
+    const matching = MOCK_POOL.filter((m) => m.protein === proteinName && !exclude.includes(m.name));
+    if (matching.length > 0) return shuffle(matching)[0];
+    return pickMenus(1, exclude)[0];
+  }
+
+  function generateMenusMock(currentConditions, slots) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const count = currentConditions.count + 2;
-        resolve({
-          greeting: pickRandom(GREETINGS),
-          menus: pickMenus(count, []).map((m) => ({ ...m }))
+        const usedNames = [];
+        const menus = (slots || []).map((protein) => {
+          const picked = { ...pickMenuForProtein(protein, usedNames) };
+          usedNames.push(picked.name);
+          return picked;
         });
+        resolve({ greeting: pickRandom(GREETINGS), menus });
       }, 900 + Math.random() * 600);
     });
   }
 
-  function regenerateOneMock(excludeNames) {
+  function regenerateOneMock(excludeNames, singleProtein) {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve({ ...pickMenus(1, excludeNames)[0] });
+        resolve({ ...pickMenuForProtein(singleProtein, excludeNames) });
       }, 700 + Math.random() * 400);
     });
   }
@@ -1434,17 +1477,30 @@ const GeminiService = (() => {
     return history.filter((item) => new Date(item.adoptedAt).getTime() >= cutoffMs).map((item) => item.menu.name);
   }
 
+  // slots: 1品ごとに要求タンパク質を並べた配列（nullは自由枠、OMAKASE_LABELはAI完全おまかせ）
+  function buildDishInstruction(opts) {
+    if (opts.slots) {
+      const lines = opts.slots.map((protein, i) => {
+        if (!protein) return `${i + 1}品目: 家族の好みに合う自由な一品（これまでの指定と被らないタンパク質が望ましい）`;
+        if (protein === OMAKASE_LABEL) return `${i + 1}品目: タンパク質・料理ジャンルともにAIにおまかせの一品`;
+        return `${i + 1}品目: 「${protein}」を必ずメインのタンパク質として使う料理`;
+      });
+      return [
+        `合計${opts.slots.length}品を、以下の番号ごとの指定に沿って提案してください（menus配列の順序もこの番号順にしてください）。`,
+        ...lines,
+        '各品のprotein欄には、実際にingredientsで使用したタンパク質食材と一致する名称を正確に記載し、指定と矛盾しないようにしてください（例: 「豚こま」を指定された品のingredientsに鶏肉しか含まれない、という状態は不可）。'
+      ].join('\n');
+    }
+    if (opts.singleProtein) {
+      return opts.singleProtein === OMAKASE_LABEL
+        ? '1品を提案してください。タンパク質・料理ジャンルともに自由に選んでください。'
+        : `1品を提案してください。「${opts.singleProtein}」を必ずメインのタンパク質として使い、protein欄にはそれと一致する名称を正確に記載してください。ingredientsにも対応する食材を必ず含めてください。`;
+    }
+    return '1品を提案してください。';
+  }
+
   function buildPrompt(currentConditions, appSettings, options) {
     const opts = options || {};
-    const count = opts.count || (currentConditions.count + 2);
-
-    const proteinLines = Object.entries(currentConditions.proteinAllocation)
-      .filter(([, n]) => n > 0)
-      .map(([name, n]) => (name === OMAKASE_LABEL
-        ? `・${n}回分はタンパク質・料理ジャンルともにAIにおまかせ`
-        : `・${name}: ${n}回`))
-      .join('\n');
-
     const tagsText = currentConditions.selectedTags.length > 0 ? currentConditions.selectedTags.join('、') : 'なし';
     const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...(opts.excludeNames || [])])];
     const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
@@ -1457,15 +1513,13 @@ const GeminiService = (() => {
       appSettings.familyProfile,
       '',
       '【今回の条件】',
-      `・提案してほしい品数: ${count}品`,
-      '・タンパク質の内訳（回数指定分）:',
-      proteinLines || 'なし',
+      buildDishInstruction(opts),
       `・こだわりタグ: ${tagsText}`,
       `・自由記入欄: ${currentConditions.freeText || 'なし'}`,
       `・現在の月: ${month}月（旬の野菜の参考にしてください）`,
       `・避けてほしい料理（直近14日に採用済み、または今回すでに提案済みのもの）: ${avoidText}`,
       '',
-      '出力は指定のJSONスキーマのみで、それ以外の文章は含めないでください。'
+      '出力は指定のJSONスキーマのみで、それ以外の文章は含めないでください。menusの品数は上記の指定と必ず一致させてください。'
     ].join('\n');
 
     if (opts.changeReason) {
@@ -1523,25 +1577,25 @@ const GeminiService = (() => {
     }
   }
 
-  function generateMenusReal(currentConditions) {
-    const prompt = buildPrompt(currentConditions, settings, { count: currentConditions.count + 2 });
+  function generateMenusReal(currentConditions, slots) {
+    const prompt = buildPrompt(currentConditions, settings, { slots });
     return callWithRetry(() => callGeminiAPI(prompt));
   }
 
-  async function regenerateOneReal(currentConditions, excludeNames, reason) {
-    const prompt = buildPrompt(currentConditions, settings, { count: 1, excludeNames, changeReason: reason });
+  async function regenerateOneReal(currentConditions, excludeNames, reason, singleProtein) {
+    const prompt = buildPrompt(currentConditions, settings, { excludeNames, changeReason: reason, singleProtein });
     const result = await callWithRetry(() => callGeminiAPI(prompt));
     return (result.menus && result.menus[0]) || null;
   }
 
   // --- 公開インターフェース（demoModeで実装を切り替える） ---
 
-  function generateMenus(currentConditions) {
-    return settings.demoMode ? generateMenusMock(currentConditions) : generateMenusReal(currentConditions);
+  function generateMenus(currentConditions, slots) {
+    return settings.demoMode ? generateMenusMock(currentConditions, slots) : generateMenusReal(currentConditions, slots);
   }
 
-  function regenerateOne(currentConditions, excludeNames, reason) {
-    return settings.demoMode ? regenerateOneMock(excludeNames) : regenerateOneReal(currentConditions, excludeNames, reason);
+  function regenerateOne(currentConditions, excludeNames, reason, singleProtein) {
+    return settings.demoMode ? regenerateOneMock(excludeNames, singleProtein) : regenerateOneReal(currentConditions, excludeNames, reason, singleProtein);
   }
 
   return { generateMenus, regenerateOne };
@@ -1557,6 +1611,7 @@ const LOADING_MESSAGES = [
 ];
 
 let currentMenus = [];
+let currentMenuSlots = []; // currentMenusと同じ順序で、各枠に要求したタンパク質を記録
 
 function setResultsView(state) {
   document.getElementById('results-loading').style.display = state === 'loading' ? 'block' : 'none';
@@ -1583,8 +1638,10 @@ async function runGeneration() {
   document.getElementById('loading-message').textContent = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
 
   try {
-    const result = await GeminiService.generateMenus(conditions);
+    const slots = expandProteinSlots(conditions.proteinAllocation, conditions.count + 2);
+    const result = await GeminiService.generateMenus(conditions, slots);
     currentMenus = result.menus;
+    currentMenuSlots = slots;
     document.getElementById('results-greeting').textContent = result.greeting;
     renderMenuCards();
     setResultsView('content');
@@ -1617,6 +1674,14 @@ function buildStepList(steps) {
   return ol;
 }
 
+// どのタンパク質をもとにした提案かを明示するラベル（提案カード・日付詳細・ライブラリ詳細で共通利用）
+function buildProteinLabel(menu) {
+  const p = document.createElement('p');
+  p.className = 'menu-protein-label';
+  p.textContent = '使用タンパク質: ' + menu.protein;
+  return p;
+}
+
 function buildMenuCard(menu, index) {
   const card = document.createElement('div');
   card.className = 'menu-card';
@@ -1640,6 +1705,8 @@ function buildMenuCard(menu, index) {
   head.appendChild(adoptLabel);
   card.appendChild(head);
 
+  card.appendChild(buildProteinLabel(menu));
+
   const desc = document.createElement('p');
   desc.className = 'menu-desc';
   desc.textContent = menu.description;
@@ -1647,11 +1714,8 @@ function buildMenuCard(menu, index) {
 
   const meta = document.createElement('div');
   meta.className = 'menu-meta';
-  const proteinSpan = document.createElement('span');
-  proteinSpan.textContent = '🍳 ' + menu.protein;
   const timeSpan = document.createElement('span');
   timeSpan.textContent = '⏱ ' + menu.cooking_time_min + '分';
-  meta.appendChild(proteinSpan);
   meta.appendChild(timeSpan);
   card.appendChild(meta);
 
@@ -1718,7 +1782,8 @@ async function regenerateCard(index, reason, cardEl) {
   if (hint) hint.textContent = '';
   try {
     const excludeNames = currentMenus.map((m) => m.name);
-    const newMenu = await GeminiService.regenerateOne(conditions, excludeNames, reason);
+    const slot = currentMenuSlots[index] || null;
+    const newMenu = await GeminiService.regenerateOne(conditions, excludeNames, reason, slot);
     if (!newMenu) throw new Error('差し替え候補が見つかりませんでした');
     currentMenus[index] = newMenu;
     renderMenuCards();
@@ -1967,9 +2032,10 @@ function renderShoppingSection(listElId, sectionElId, items, formatter) {
 }
 
 function updateShareButtonsVisibility() {
+  // 共有シート経由でメモアプリにも送れるが、既存の特定メモへの追記はコピー貼り付けが確実なため両方常に表示する
   const hasShare = typeof navigator.share === 'function';
   document.getElementById('btn-share-line').style.display = hasShare ? 'block' : 'none';
-  document.getElementById('btn-copy-list').style.display = hasShare ? 'none' : 'block';
+  document.getElementById('btn-copy-list').style.display = 'block';
 }
 
 function renderShoppingScreen() {
@@ -2154,6 +2220,7 @@ function renderCalendarScreen() {
   document.getElementById('calendar-month-label').textContent = `${year}年${month + 1}月`;
 
   const plannedByDate = getPlannedByDate();
+  const notes = getCalendarNotes();
   const todayStr = formatDateLocal(new Date());
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -2170,7 +2237,7 @@ function renderCalendarScreen() {
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = formatDateLocal(new Date(year, month, day));
     const cell = document.createElement('div');
-    cell.className = 'calendar-cell';
+    cell.className = 'calendar-cell calendar-clickable';
     if (dateStr === todayStr) cell.classList.add('calendar-today');
 
     const dayNum = document.createElement('div');
@@ -2185,19 +2252,67 @@ function renderCalendarScreen() {
       label.className = 'calendar-menu-label';
       label.textContent = entries.map((e) => e.item.menu.name).join('・');
       cell.appendChild(label);
-      cell.addEventListener('click', () => openDayDetail(dateStr));
+    } else if (notes[dateStr]) {
+      const noteLabel = document.createElement('div');
+      noteLabel.className = 'calendar-note-label';
+      noteLabel.textContent = notes[dateStr];
+      cell.appendChild(noteLabel);
     }
+
+    // 献立・メモが無い日もタップしてメモを追加できるよう、常にクリック可能にする
+    cell.addEventListener('click', () => openDayDetail(dateStr));
 
     grid.appendChild(cell);
   }
 }
 
+function getCalendarNotes() {
+  return StorageService.get('calendarNotes', {});
+}
+
+function setCalendarNote(dateStr, text) {
+  const notes = getCalendarNotes();
+  if (text) {
+    notes[dateStr] = text;
+  } else {
+    delete notes[dateStr];
+  }
+  StorageService.set('calendarNotes', notes);
+}
+
+function buildDayNoteCard(dateStr) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const dateObj = new Date(dateStr + 'T00:00:00');
+  const weekday = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
+  const heading = document.createElement('h3');
+  heading.textContent = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日（${weekday}）`;
+  card.appendChild(heading);
+
+  const label = document.createElement('p');
+  label.className = 'hint';
+  label.textContent = 'メモ（外食の予定など）';
+  card.appendChild(label);
+
+  const textarea = document.createElement('textarea');
+  textarea.rows = 2;
+  textarea.placeholder = '例: 外食、旅行中など';
+  textarea.value = getCalendarNotes()[dateStr] || '';
+  textarea.addEventListener('input', () => {
+    setCalendarNote(dateStr, textarea.value);
+  });
+  card.appendChild(textarea);
+
+  return card;
+}
+
 function openDayDetail(dateStr) {
   const entries = getPlannedByDate().get(dateStr) || [];
-  if (entries.length === 0) return;
 
   const content = document.getElementById('calendar-day-detail-content');
   content.innerHTML = '';
+  content.appendChild(buildDayNoteCard(dateStr));
   entries.forEach(({ index, item }) => {
     content.appendChild(buildDayDetailCard(dateStr, index, item));
   });
@@ -2287,6 +2402,8 @@ function buildDayDetailCard(dateStr, historyIndex, item) {
   const title = document.createElement('h3');
   title.textContent = menu.name;
   card.appendChild(title);
+
+  card.appendChild(buildProteinLabel(menu));
 
   const desc = document.createElement('p');
   desc.className = 'menu-desc';
@@ -2453,6 +2570,8 @@ function buildLibraryDetailCard(entry) {
   const title = document.createElement('h3');
   title.textContent = menu.name;
   card.appendChild(title);
+
+  card.appendChild(buildProteinLabel(menu));
 
   const desc = document.createElement('p');
   desc.className = 'menu-desc';
