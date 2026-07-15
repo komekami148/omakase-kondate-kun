@@ -111,6 +111,12 @@
     border: 1px solid var(--color-primary);
     margin-top: 10px;
   }
+  .btn-danger {
+    background: var(--color-surface);
+    color: #c0554d;
+    border: 1px solid #c0554d;
+    margin-top: 10px;
+  }
   .back-link {
     display: inline-flex;
     align-items: center;
@@ -2604,7 +2610,26 @@ function buildLibraryDetailCard(entry) {
   againBtn.addEventListener('click', () => reAdoptMenu(menu));
   card.appendChild(againBtn);
 
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'btn btn-danger';
+  deleteBtn.textContent = 'この料理の履歴を削除';
+  deleteBtn.addEventListener('click', () => {
+    const confirmed = confirm(`「${menu.name}」の採用履歴をすべて削除します。カレンダーの記録や評価も一緒に消え、元に戻せません。よろしいですか？`);
+    if (!confirmed) return;
+    deleteRecipeFromHistory(menu.name);
+    closeLibraryDetail();
+    renderLibraryScreen();
+  });
+  card.appendChild(deleteBtn);
+
   return card;
+}
+
+function deleteRecipeFromHistory(name) {
+  const history = StorageService.get('adoptedHistory', []);
+  const filtered = history.filter((item) => item.menu.name !== name);
+  StorageService.set('adoptedHistory', filtered);
 }
 
 function openLibraryDetail(name) {
