@@ -285,14 +285,6 @@
     color: #fff;
     border-color: var(--color-primary);
   }
-  .demo-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--color-text);
-  }
-  .demo-toggle input { width: 18px; height: 18px; flex-shrink: 0; }
   #results-loading { text-align: center; padding: 48px 16px; }
   #results-loading p { color: var(--color-text-sub); font-size: 14px; }
   .menu-card {
@@ -620,6 +612,50 @@
     color: var(--color-primary);
     white-space: nowrap;
   }
+  .staple-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .staple-row-top {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .staple-row-top input { flex: 1; }
+  .staple-link {
+    display: inline-block;
+    font-size: 12px;
+    color: var(--color-primary-dark);
+    text-decoration: underline;
+    margin: 2px 0 6px;
+    word-break: break-all;
+  }
+  .mismatch-warning {
+    font-size: 12px;
+    color: #c0554d;
+    background: #fbeceb;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin: 0 0 8px;
+  }
+  .slot-label {
+    font-size: 12px;
+    color: var(--color-text-sub);
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+  .staple-pick-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+  }
+  .staple-pick-row:last-child { border-bottom: none; }
+  .staple-pick-row input { width: 18px; height: 18px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -672,6 +708,7 @@
         <p id="results-error-message"></p>
         <button class="btn btn-outline" id="btn-results-retry">もう一度</button>
         <button class="btn btn-outline" id="btn-results-to-settings">設定を開く</button>
+        <p class="hint" id="results-error-detail" style="word-break:break-all;"></p>
       </div>
 
       <div id="results-content" style="display:none;">
@@ -681,6 +718,11 @@
         <div id="menu-cards"></div>
         <div class="results-footer">
           <button class="btn btn-outline" id="btn-regenerate-all">全部作り直す</button>
+          <button class="btn btn-outline" id="btn-toggle-staples-picker">定番メニューから選ぶ</button>
+          <div id="staples-picker-panel" class="card" style="display:none;">
+            <p class="hint">迷ったときは、登録しておいた定番メニューから選んで一緒に採用できます。</p>
+            <div id="staples-picker-list"></div>
+          </div>
           <button class="btn" id="btn-confirm-adopt" disabled>採用を確定（0件）</button>
         </div>
       </div>
@@ -751,17 +793,8 @@
 
       <div class="card">
         <h2>AIモデル</h2>
-        <input type="text" id="input-model-id" placeholder="例: gemini-3.5-flash">
+        <input type="text" id="input-model-id" placeholder="例: gemini-2.5-flash-lite">
         <p class="hint">通常は変更不要です。エラーが続く場合はGemini公式ドキュメントで最新の軽量モデルIDをご確認のうえ変更してください。</p>
-      </div>
-
-      <div class="card">
-        <h2>デモモード</h2>
-        <label class="demo-toggle">
-          <input type="checkbox" id="input-demo-mode">
-          <span>デモモード（APIキーなしでサンプルの献立を確認できます）</span>
-        </label>
-        <p class="hint">OFFにすると、上のAPIキーを使って実際にGeminiが献立を考えます。</p>
       </div>
 
       <div class="card">
@@ -829,27 +862,56 @@
 
     <!-- 料理ライブラリ画面 -->
     <section class="screen" id="screen-library">
-      <div id="library-list-view">
-        <div class="card">
-          <div class="library-sort-row">
-            <span class="hint">並び順</span>
-            <div class="segmented" id="library-sort-toggle">
-              <button type="button" class="segmented-btn active" data-sort="recent">新しい順</button>
-              <button type="button" class="segmented-btn" data-sort="rating">星の高い順</button>
-            </div>
+      <div class="card">
+        <div class="library-sort-row">
+          <span class="hint">表示</span>
+          <div class="segmented" id="library-mode-toggle">
+            <button type="button" class="segmented-btn active" data-mode="cooked">作った料理</button>
+            <button type="button" class="segmented-btn" data-mode="staples">定番メニュー</button>
           </div>
         </div>
-
-        <div class="card" id="library-empty" style="display:none;">
-          <p>まだ作った料理がありません。献立を採用すると、ここに記録されていきます。</p>
-        </div>
-
-        <div id="library-list"></div>
       </div>
 
-      <div id="library-detail" style="display:none;">
-        <button class="back-link" id="btn-library-detail-close">← ライブラリに戻る</button>
-        <div id="library-detail-content"></div>
+      <div id="library-cooked-view">
+        <div id="library-list-view">
+          <div class="card">
+            <div class="library-sort-row">
+              <span class="hint">並び順</span>
+              <div class="segmented" id="library-sort-toggle">
+                <button type="button" class="segmented-btn active" data-sort="recent">新しい順</button>
+                <button type="button" class="segmented-btn" data-sort="rating">星の高い順</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="library-empty" style="display:none;">
+            <p>まだ作った料理がありません。献立を採用すると、ここに記録されていきます。</p>
+          </div>
+
+          <div id="library-list"></div>
+        </div>
+
+        <div id="library-detail" style="display:none;">
+          <button class="back-link" id="btn-library-detail-close">← ライブラリに戻る</button>
+          <div id="library-detail-content"></div>
+        </div>
+      </div>
+
+      <div id="library-staples-view" style="display:none;">
+        <div class="card">
+          <h2>定番メニューを追加</h2>
+          <p class="hint">迷ったときの候補として、料理名だけでも登録できます。</p>
+          <input type="text" id="input-staple-name" placeholder="料理名（必須）">
+          <input type="text" id="input-staple-url" placeholder="URL（任意）">
+          <textarea id="input-staple-memo" rows="2" placeholder="一言メモ（任意）"></textarea>
+          <button class="btn" id="btn-add-staple">追加</button>
+        </div>
+
+        <div class="card" id="staples-empty" style="display:none;">
+          <p>まだ定番メニューが登録されていません。</p>
+        </div>
+
+        <div id="staples-list"></div>
       </div>
     </section>
   </main>
@@ -986,6 +1048,7 @@ function showScreen(name) {
   }
   if (name === 'library' && typeof renderLibraryScreen === 'function') {
     closeLibraryDetail();
+    if (typeof resetLibraryMode === 'function') resetLibraryMode();
     renderLibraryScreen();
   }
 
@@ -1006,8 +1069,7 @@ document.getElementById('btn-results-back').addEventListener('click', () => show
 // ==========================================================
 const DEFAULT_SETTINGS = {
   apiKey: '',
-  modelId: 'gemini-3.5-flash',
-  demoMode: true,
+  modelId: 'gemini-2.5-flash-lite',
   familyProfile: '大人2人、3歳と1歳の子ども。子どもが食べやすい味付け・取り分けを重視',
   proteinMaster: ['鶏むね', '鶏もも', '豚こま', '豚バラ', 'ひき肉（合いびき）', 'ひき肉（鶏）', 'たまご', '豆腐', '白身魚', '鮭', '牛こま'],
   tagMaster: ['時短（15分以内）', 'フライパンひとつ', 'レンジ調理OK', '旬の野菜', '子どもが食べやすい', 'お腹に優しい', '一品で完結', '麺類以外', 'さっぱり', 'がっつり'],
@@ -1095,7 +1157,6 @@ function wireAddRow(inputId, btnId, arrayRef, listElId, reorderable) {
 function initSettingsScreen() {
   document.getElementById('input-api-key').value = settings.apiKey || '';
   document.getElementById('input-model-id').value = settings.modelId || DEFAULT_SETTINGS.modelId;
-  document.getElementById('input-demo-mode').checked = !!settings.demoMode;
   document.getElementById('input-family-profile').value = settings.familyProfile || '';
   renderEditableList('list-protein', settings.proteinMaster, true);
   renderEditableList('list-tag', settings.tagMaster, false);
@@ -1134,10 +1195,6 @@ document.getElementById('btn-test-api-key').addEventListener('click', async () =
 });
 document.getElementById('input-model-id').addEventListener('input', (e) => {
   settings.modelId = e.target.value.trim();
-  saveSettings();
-});
-document.getElementById('input-demo-mode').addEventListener('change', (e) => {
-  settings.demoMode = e.target.checked;
   saveSettings();
 });
 
@@ -1356,60 +1413,45 @@ document.getElementById('btn-generate-menu').addEventListener('click', () => {
 
 // ==========================================================
 // GeminiService: プロンプト生成・API呼び出し・JSON検証
-// settings.demoMode に応じてモック／実APIを切り替える
 // ==========================================================
-const GEMINI_RESPONSE_SCHEMA = {
+// ネット検索グラウンディングは無料枠のクォータ挙動が不安定なため使用しない。
+// responseSchemaによる構造化出力で安定性を優先する（タンパク質の厳密指定・検証・再試行は維持）。
+const MENU_ITEM_SCHEMA = {
   type: 'OBJECT',
   properties: {
-    greeting: { type: 'STRING' },
-    menus: {
+    name: { type: 'STRING' },
+    description: { type: 'STRING' },
+    protein: { type: 'STRING' },
+    cooking_time_min: { type: 'INTEGER' },
+    kid_note: { type: 'STRING' },
+    ingredients: {
       type: 'ARRAY',
       items: {
         type: 'OBJECT',
         properties: {
           name: { type: 'STRING' },
-          description: { type: 'STRING' },
-          protein: { type: 'STRING' },
-          cooking_time_min: { type: 'INTEGER' },
-          kid_note: { type: 'STRING' },
-          ingredients: {
-            type: 'ARRAY',
-            items: {
-              type: 'OBJECT',
-              properties: {
-                name: { type: 'STRING' },
-                amount: { type: 'NUMBER' },
-                unit: { type: 'STRING' },
-                category: { type: 'STRING', enum: ['野菜', '肉魚', 'その他'] }
-              },
-              required: ['name', 'amount', 'unit', 'category']
-            }
-          },
-          steps: { type: 'ARRAY', items: { type: 'STRING' } }
+          amount: { type: 'NUMBER' },
+          unit: { type: 'STRING' },
+          category: { type: 'STRING', enum: ['野菜', '肉魚', 'その他'] }
         },
-        required: ['name', 'description', 'protein', 'cooking_time_min', 'kid_note', 'ingredients', 'steps']
+        required: ['name', 'amount', 'unit', 'category']
       }
-    }
+    },
+    steps: { type: 'ARRAY', items: { type: 'STRING' } }
   },
-  required: ['greeting', 'menus']
+  required: ['name', 'description', 'protein', 'cooking_time_min', 'kid_note', 'ingredients', 'steps']
+};
+
+const MENU_SCHEMA = MENU_ITEM_SCHEMA;
+const BATCH_MENU_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    menus: { type: 'ARRAY', items: MENU_ITEM_SCHEMA }
+  },
+  required: ['menus']
 };
 
 const GeminiService = (() => {
-  const MOCK_POOL = [
-    { name: '鶏むねのさっぱりポン酢炒め', description: 'さっぱり食べられる炒め物', protein: '鶏むね', cooking_time_min: 15, kid_note: '辛みなし。取り分けてからポン酢を後がけに', ingredients: [{ name: '鶏むね肉', amount: 1, unit: '枚', category: '肉魚' }, { name: '玉ねぎ', amount: 1, unit: '個', category: '野菜' }, { name: 'ポン酢', amount: 2, unit: '大さじ', category: 'その他' }], steps: ['鶏むね肉を一口大に切る', '玉ねぎを薄切りにする', 'フライパンで炒めてポン酢で味付けする'] },
-    { name: '丸めない酢豚風', description: '肉団子にせず時短の酢豚風', protein: '豚こま', cooking_time_min: 20, kid_note: '酸味は控えめに。取り分けてから酢を足す', ingredients: [{ name: '豚こま肉', amount: 300, unit: 'g', category: '肉魚' }, { name: 'ピーマン', amount: 2, unit: '個', category: '野菜' }, { name: 'ケチャップ', amount: 2, unit: '大さじ', category: 'その他' }], steps: ['豚こまに片栗粉をまぶす', '野菜と炒める', 'ケチャップだれを絡める'] },
-    { name: 'ひき肉と豆腐の和風あんかけ', description: 'とろみで食べやすい一品', protein: 'ひき肉（合いびき）', cooking_time_min: 15, kid_note: 'とろみをつけて食べやすく。豆腐は小さく崩して取り分け', ingredients: [{ name: '合いびき肉', amount: 150, unit: 'g', category: '肉魚' }, { name: '豆腐', amount: 1, unit: '丁', category: 'その他' }, { name: '長ねぎ', amount: 1, unit: '本', category: '野菜' }], steps: ['ひき肉を炒める', '豆腐と長ねぎを加える', '水溶き片栗粉でとろみをつける'] },
-    { name: '鮭の塩麹焼き', description: '塩麹でしっとり焼き上げ', protein: '鮭', cooking_time_min: 15, kid_note: '骨に注意し、ほぐしてから取り分け', ingredients: [{ name: '鮭', amount: 2, unit: '切れ', category: '肉魚' }, { name: '塩麹', amount: 1, unit: '大さじ', category: 'その他' }, { name: 'ブロッコリー', amount: 1, unit: '株', category: '野菜' }], steps: ['鮭に塩麹を揉み込む', 'フライパンで焼く', 'ブロッコリーを添える'] },
-    { name: 'たまごとひき肉のふわとろ丼', description: '手早くできるどんぶり', protein: 'たまご', cooking_time_min: 10, kid_note: 'ふわふわ食感で食べやすい', ingredients: [{ name: '卵', amount: 3, unit: '個', category: 'その他' }, { name: '鶏ひき肉', amount: 100, unit: 'g', category: '肉魚' }, { name: '三つ葉', amount: 1, unit: '束', category: '野菜' }], steps: ['ひき肉を炒める', '溶き卵を回し入れる', '半熟でご飯にのせる'] },
-    { name: '白身魚のレンジ蒸し野菜あんかけ', description: 'レンジで完結する優しい味', protein: '白身魚', cooking_time_min: 12, kid_note: '骨なしの切り身を選ぶと安心', ingredients: [{ name: '白身魚の切り身', amount: 2, unit: '切れ', category: '肉魚' }, { name: 'にんじん', amount: 0.5, unit: '本', category: '野菜' }, { name: 'だし', amount: 100, unit: 'ml', category: 'その他' }], steps: ['耐熱皿に魚と野菜をのせる', 'ラップしてレンジ加熱', 'あんをかける'] },
-    { name: '豆腐ハンバーグ', description: 'ふわふわで消化に優しい', protein: '豆腐', cooking_time_min: 20, kid_note: '小さめに成形すると取り分けやすい', ingredients: [{ name: '豆腐', amount: 1, unit: '丁', category: 'その他' }, { name: '鶏ひき肉', amount: 150, unit: 'g', category: '肉魚' }, { name: '玉ねぎ', amount: 0.5, unit: '個', category: '野菜' }], steps: ['材料を混ぜて成形する', 'フライパンで焼く', '蓋をして中まで火を通す'] },
-    { name: '豚バラと白菜のミルフィーユ鍋風', description: '野菜がたっぷり摂れる一品', protein: '豚バラ', cooking_time_min: 25, kid_note: '薄味で取り分けてから調整', ingredients: [{ name: '豚バラ肉', amount: 200, unit: 'g', category: '肉魚' }, { name: '白菜', amount: 0.25, unit: '個', category: '野菜' }, { name: 'だし', amount: 300, unit: 'ml', category: 'その他' }], steps: ['白菜と豚バラを交互に重ねる', '鍋に入れて煮る', 'だしで味を調える'] },
-    { name: '牛こまと野菜のオイスター炒め', description: 'ご飯が進む甘辛炒め', protein: '牛こま', cooking_time_min: 15, kid_note: 'オイスターソースは控えめに', ingredients: [{ name: '牛こま肉', amount: 200, unit: 'g', category: '肉魚' }, { name: 'ピーマン', amount: 2, unit: '個', category: '野菜' }, { name: 'オイスターソース', amount: 1, unit: '大さじ', category: 'その他' }], steps: ['牛肉を炒める', '野菜を加える', 'オイスターソースで味付け'] },
-    { name: '鶏もものレンジ照り焼き', description: 'レンジで簡単、フライパン不要', protein: '鶏もも', cooking_time_min: 15, kid_note: '甘めのタレで子どもも食べやすい', ingredients: [{ name: '鶏もも肉', amount: 1, unit: '枚', category: '肉魚' }, { name: '醤油', amount: 1, unit: '大さじ', category: 'その他' }, { name: 'みりん', amount: 1, unit: '大さじ', category: 'その他' }], steps: ['鶏肉をタレに漬ける', '耐熱皿にのせレンジ加熱', '照りが出るまで加熱を繰り返す'] },
-    { name: 'ひき肉（鶏）の野菜あんかけうどん', description: '体が温まる一品', protein: 'ひき肉（鶏）', cooking_time_min: 15, kid_note: '麺は短く切って食べやすく', ingredients: [{ name: '鶏ひき肉', amount: 100, unit: 'g', category: '肉魚' }, { name: 'うどん', amount: 2, unit: '玉', category: 'その他' }, { name: 'にんじん', amount: 0.5, unit: '本', category: '野菜' }], steps: ['ひき肉と野菜を煮る', 'とろみをつける', '茹でたうどんにかける'] },
-    { name: '今日のおまかせワンプレート', description: 'その日の気分に合わせた一品（デモ用サンプル）', protein: 'おまかせ', cooking_time_min: 15, kid_note: '取り分けやすい味付けにします', ingredients: [{ name: 'お好みの具材', amount: 1, unit: '式', category: 'その他' }], steps: ['お好みの材料で調理します'] }
-  ];
-
   const GREETINGS = [
     '今週も献立づくり、おつかれさまです。',
     'お待たせしました。ゆっくり選んでくださいね。',
@@ -1419,52 +1461,6 @@ const GeminiService = (() => {
   function pickRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
   }
-
-  function shuffle(arr) {
-    return [...arr].sort(() => Math.random() - 0.5);
-  }
-
-  function pickMenus(n, excludeNames) {
-    const exclude = excludeNames || [];
-    const pool = MOCK_POOL.filter((m) => !exclude.includes(m.name));
-    const source = pool.length >= n ? pool : MOCK_POOL;
-    return shuffle(source).slice(0, n);
-  }
-
-  // 指定タンパク質のモックを優先的に選ぶ（該当が無ければ通常のランダム選出にフォールバック）
-  function pickMenuForProtein(proteinName, excludeNames) {
-    const exclude = excludeNames || [];
-    if (!proteinName || proteinName === OMAKASE_LABEL) {
-      return pickMenus(1, exclude)[0];
-    }
-    const matching = MOCK_POOL.filter((m) => m.protein === proteinName && !exclude.includes(m.name));
-    if (matching.length > 0) return shuffle(matching)[0];
-    return pickMenus(1, exclude)[0];
-  }
-
-  function generateMenusMock(currentConditions, slots) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const usedNames = [];
-        const menus = (slots || []).map((protein) => {
-          const picked = { ...pickMenuForProtein(protein, usedNames) };
-          usedNames.push(picked.name);
-          return picked;
-        });
-        resolve({ greeting: pickRandom(GREETINGS), menus });
-      }, 900 + Math.random() * 600);
-    });
-  }
-
-  function regenerateOneMock(excludeNames, singleProtein) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ ...pickMenuForProtein(singleProtein, excludeNames) });
-      }, 700 + Math.random() * 400);
-    });
-  }
-
-  // --- ここから実API呼び出し ---
 
   function networkError(msg) {
     const e = new Error(msg);
@@ -1483,59 +1479,120 @@ const GeminiService = (() => {
     return history.filter((item) => new Date(item.adoptedAt).getTime() >= cutoffMs).map((item) => item.menu.name);
   }
 
-  // slots: 1品ごとに要求タンパク質を並べた配列（nullは自由枠、OMAKASE_LABELはAI完全おまかせ）
-  function buildDishInstruction(opts) {
-    if (opts.slots) {
-      const lines = opts.slots.map((protein, i) => {
-        if (!protein) return `${i + 1}品目: 家族の好みに合う自由な一品（これまでの指定と被らないタンパク質が望ましい）`;
-        if (protein === OMAKASE_LABEL) return `${i + 1}品目: タンパク質・料理ジャンルともにAIにおまかせの一品`;
-        return `${i + 1}品目: 「${protein}」を必ずメインのタンパク質として使う料理`;
-      });
-      return [
-        `合計${opts.slots.length}品を、以下の番号ごとの指定に沿って提案してください（menus配列の順序もこの番号順にしてください）。`,
-        ...lines,
-        '各品のprotein欄には、実際にingredientsで使用したタンパク質食材と一致する名称を正確に記載し、指定と矛盾しないようにしてください（例: 「豚こま」を指定された品のingredientsに鶏肉しか含まれない、という状態は不可）。'
-      ].join('\n');
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // slot: 要求タンパク質（null=自由枠、OMAKASE_LABEL=AI完全おまかせ）
+  function buildDishInstruction(slot) {
+    if (!slot) {
+      return 'タンパク質は指定しません。家族の好みに合う自由な一品を提案してください。';
     }
-    if (opts.singleProtein) {
-      return opts.singleProtein === OMAKASE_LABEL
-        ? '1品を提案してください。タンパク質・料理ジャンルともに自由に選んでください。'
-        : `1品を提案してください。「${opts.singleProtein}」を必ずメインのタンパク質として使い、protein欄にはそれと一致する名称を正確に記載してください。ingredientsにも対応する食材を必ず含めてください。`;
+    if (slot === OMAKASE_LABEL) {
+      return 'タンパク質・料理ジャンルともにAIにおまかせで、家族の好みに合う一品を提案してください。';
     }
-    return '1品を提案してください。';
+    return [
+      `【最重要・厳守】この1品のメインのタンパク質は必ず「${slot}」にしてください。これ以外のタンパク質（例: ${slot}以外の肉・魚・卵・大豆製品など）を主役にすることは絶対に禁止です。`,
+      `ingredientsには「${slot}」に対応する具体的な食材（例: 「${slot}」そのもの、または「${slot}肉」等の表記）を必ず1つ以上含めてください。`,
+      `protein欄には「${slot}」と一致する名称を正確に記載してください。`,
+      `もし「${slot}」を使った適切なレシピが検索で見つからない場合でも、必ず「${slot}」を使った料理を自力で構成してください。他のタンパク質に差し替えることは禁止です。`
+    ].join('\n');
+  }
+
+  // 複数品目を1回のリクエストでまとめて依頼する（APIのレート制限を避けるため）
+  function buildBatchDishInstruction(slots) {
+    const lines = slots.map((slot, i) => {
+      if (!slot) return `${i + 1}品目: 家族の好みに合う自由な一品（他の品と被らないタンパク質が望ましい）`;
+      if (slot === OMAKASE_LABEL) return `${i + 1}品目: タンパク質・料理ジャンルともにAIにおまかせの一品`;
+      return `${i + 1}品目: 【厳守】メインのタンパク質は必ず「${slot}」にすること。ingredientsに対応する食材を必ず含めること。`;
+    });
+    return [
+      `合計${slots.length}品を、以下の番号ごとの指定に沿って提案してください（menus配列もこの番号順にしてください）。`,
+      ...lines
+    ].join('\n');
+  }
+
+  function buildConditionLines(currentConditions) {
+    const tagsText = currentConditions.selectedTags.length > 0 ? currentConditions.selectedTags.join('、') : 'なし';
+    const month = new Date().getMonth() + 1;
+    return [
+      `・こだわりタグ: ${tagsText}`,
+      `・自由記入欄: ${currentConditions.freeText || 'なし'}`,
+      `・現在の月: ${month}月（旬の野菜の参考にしてください）`
+    ];
   }
 
   function buildPrompt(currentConditions, appSettings, options) {
     const opts = options || {};
-    const tagsText = currentConditions.selectedTags.length > 0 ? currentConditions.selectedTags.join('、') : 'なし';
     const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...(opts.excludeNames || [])])];
     const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
-    const month = new Date().getMonth() + 1;
 
     let prompt = [
-      'あなたは家庭料理の献立アドバイザーです。応答の冒頭（greetingフィールド）で一言、労い・共感の言葉を添えてください（絵文字は控えめに）。',
+      'あなたは家庭料理の献立アドバイザーです。',
       '',
       '【家族プロフィール】',
       appSettings.familyProfile,
       '',
       '【今回の条件】',
-      buildDishInstruction(opts),
-      `・こだわりタグ: ${tagsText}`,
-      `・自由記入欄: ${currentConditions.freeText || 'なし'}`,
-      `・現在の月: ${month}月（旬の野菜の参考にしてください）`,
-      `・避けてほしい料理（直近14日に採用済み、または今回すでに提案済みのもの）: ${avoidText}`,
-      '',
-      '出力は指定のJSONスキーマのみで、それ以外の文章は含めないでください。menusの品数は上記の指定と必ず一致させてください。'
+      buildDishInstruction(opts.slot),
+      ...buildConditionLines(currentConditions),
+      `・避けてほしい料理（直近14日に採用済み、または今回すでに提案済みのもの）: ${avoidText}`
     ].join('\n');
 
     if (opts.changeReason) {
-      prompt += `\n\n【差し替え理由】\n利用者から次の理由でこの1品だけ差し替えを希望されています:「${opts.changeReason}」。これを踏まえて別の1品を提案してください。`;
+      prompt += `\n\n【差し替え理由】\n利用者から次の理由でこの1品の差し替えを希望されています:「${opts.changeReason}」。これを踏まえて提案してください（タンパク質の指定は変わりません）。`;
     }
 
     return prompt;
   }
 
-  async function callGeminiAPI(promptText) {
+  function buildBatchPrompt(currentConditions, appSettings, slots) {
+    const avoidNames = getRecentAdoptedNames(14);
+    const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
+
+    return [
+      'あなたは家庭料理の献立アドバイザーです。',
+      '',
+      '【家族プロフィール】',
+      appSettings.familyProfile,
+      '',
+      '【今回の条件】',
+      buildBatchDishInstruction(slots),
+      ...buildConditionLines(currentConditions),
+      `・避けてほしい料理（直近14日に採用済み）: ${avoidText}`,
+      '・同じ食材やレシピの使い回しを避け、品目ごとに違うレシピにしてください。'
+    ].join('\n');
+  }
+
+  // 欠損・型違いがあっても他の画面が壊れないよう念のため補正する
+  function normalizeMenu(menu) {
+    const raw = menu || {};
+    const allowedCategories = ['野菜', '肉魚', 'その他'];
+    return {
+      name: raw.name || '(名称未設定)',
+      description: raw.description || '',
+      protein: raw.protein || '',
+      cooking_time_min: Number(raw.cooking_time_min) || 0,
+      kid_note: raw.kid_note || '',
+      ingredients: Array.isArray(raw.ingredients) ? raw.ingredients.map((ing) => ({
+        name: (ing && ing.name) || '',
+        amount: Number(ing && ing.amount) || 0,
+        unit: (ing && ing.unit) || '',
+        category: allowedCategories.includes(ing && ing.category) ? ing.category : 'その他'
+      })) : [],
+      steps: Array.isArray(raw.steps) ? raw.steps.filter((s) => typeof s === 'string') : []
+    };
+  }
+
+  // AIの自己申告(protein)だけでなく、実際のingredientsにも要求したタンパク質が含まれているかで判定する
+  function proteinMatches(menu, slot) {
+    if (!slot || slot === OMAKASE_LABEL) return true;
+    const protein = menu.protein || '';
+    if (protein.includes(slot) || slot.includes(protein)) return true;
+    return (menu.ingredients || []).some((ing) => (ing.name || '').includes(slot));
+  }
+
+  async function callRawGeminiAPI(promptText, schema) {
     const modelId = settings.modelId || DEFAULT_SETTINGS.modelId;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
 
@@ -1548,7 +1605,7 @@ const GeminiService = (() => {
           contents: [{ role: 'user', parts: [{ text: promptText }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            responseSchema: GEMINI_RESPONSE_SCHEMA
+            responseSchema: schema
           }
         })
       });
@@ -1558,7 +1615,9 @@ const GeminiService = (() => {
 
     if (!res.ok) {
       const bodyText = await res.text().catch(() => '');
-      throw networkError(`APIエラー（${res.status}）: ${bodyText.slice(0, 200)}`);
+      const err = networkError(`APIエラー（${res.status}）: ${bodyText.slice(0, 300)}`);
+      err.status = res.status;
+      throw err;
     }
 
     const data = await res.json();
@@ -1574,37 +1633,70 @@ const GeminiService = (() => {
     }
   }
 
+  async function callGeminiAPI(promptText) {
+    return normalizeMenu(await callRawGeminiAPI(promptText, MENU_SCHEMA));
+  }
+
+  async function callGeminiAPIBatch(promptText) {
+    const parsed = await callRawGeminiAPI(promptText, BATCH_MENU_SCHEMA);
+    return Array.isArray(parsed.menus) ? parsed.menus.map(normalizeMenu) : [];
+  }
+
+  // 429（レート制限）の場合は少し待ってから、それ以外の失敗は即座に1回だけ再試行する
   async function callWithRetry(fn) {
     try {
       return await fn();
     } catch (firstErr) {
-      console.error('Gemini呼び出しに失敗。1回だけリトライします:', firstErr);
+      console.error('Gemini呼び出しに失敗。再試行します:', firstErr);
+      if (firstErr && firstErr.status === 429) await sleep(8000);
       return await fn();
     }
   }
 
-  function generateMenusReal(currentConditions, slots) {
-    const prompt = buildPrompt(currentConditions, settings, { slots });
-    return callWithRetry(() => callGeminiAPI(prompt));
+  // タンパク質の指定と一致するまで再試行する（呼び出しの間隔を空けてレート制限を避ける）。
+  // それでも一致しない場合は最後の結果にproteinMismatchフラグを付けて返す（呼び出し側で警告表示する）
+  async function generateOneMatchingSlot(currentConditions, slot, excludeNames, changeReason, maxAttempts) {
+    const attempts = maxAttempts || 3;
+    let lastMenu = null;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (attempt > 1) await sleep(2000);
+      const prompt = buildPrompt(currentConditions, settings, { slot, excludeNames, changeReason });
+      const menu = await callWithRetry(() => callGeminiAPI(prompt));
+      lastMenu = menu;
+      if (proteinMatches(menu, slot)) return menu;
+      console.warn(`タンパク質不一致のため再試行 (${attempt}/${attempts}): 要求=${slot} 実際=${menu.protein}`);
+    }
+    lastMenu.proteinMismatch = true;
+    return lastMenu;
   }
 
-  async function regenerateOneReal(currentConditions, excludeNames, reason, singleProtein) {
-    const prompt = buildPrompt(currentConditions, settings, { excludeNames, changeReason: reason, singleProtein });
-    const result = await callWithRetry(() => callGeminiAPI(prompt));
-    return (result.menus && result.menus[0]) || null;
-  }
+  // まず1回のリクエストで全品目をまとめて依頼し、タンパク質が指定と合わなかった品目だけを
+  // 個別に（間隔を空けて）作り直す。これによりAPI呼び出し回数を抑えつつ精度を確保する。
+  async function generateMenusReal(currentConditions, slots) {
+    const prompt = buildBatchPrompt(currentConditions, settings, slots);
+    let menus = await callWithRetry(() => callGeminiAPIBatch(prompt));
 
-  // --- 公開インターフェース（demoModeで実装を切り替える） ---
+    while (menus.length < slots.length) menus.push(normalizeMenu({}));
+    menus = menus.slice(0, slots.length);
 
-  function generateMenus(currentConditions, slots) {
-    return settings.demoMode ? generateMenusMock(currentConditions, slots) : generateMenusReal(currentConditions, slots);
+    const usedNames = menus.map((m) => m.name);
+    for (let i = 0; i < slots.length; i++) {
+      if (!proteinMatches(menus[i], slots[i])) {
+        await sleep(2000);
+        const fixed = await generateOneMatchingSlot(currentConditions, slots[i], usedNames, null, 2);
+        menus[i] = fixed;
+        usedNames.push(fixed.name);
+      }
+    }
+
+    return { greeting: pickRandom(GREETINGS), menus };
   }
 
   function regenerateOne(currentConditions, excludeNames, reason, singleProtein) {
-    return settings.demoMode ? regenerateOneMock(excludeNames, singleProtein) : regenerateOneReal(currentConditions, excludeNames, reason, singleProtein);
+    return generateOneMatchingSlot(currentConditions, singleProtein, excludeNames, reason);
   }
 
-  return { generateMenus, regenerateOne };
+  return { generateMenus: generateMenusReal, regenerateOne };
 })();
 
 // ==========================================================
@@ -1631,10 +1723,11 @@ function showResultsErrorMessage(err) {
     ? 'うまく受け取れませんでした。もう一度だけ試させてください。'
     : '通信がうまくいかなかったようです。少し時間をおいてもう一度お試しください。';
   document.getElementById('results-error-message').textContent = message;
+  document.getElementById('results-error-detail').textContent = (err && err.message) ? `詳細: ${err.message}` : '';
 }
 
 async function runGeneration() {
-  if (!settings.demoMode && !settings.apiKey) {
+  if (!settings.apiKey) {
     setResultsView('error');
     document.getElementById('results-error-message').textContent = 'Gemini APIキーが設定されていません。設定画面から入力してください。';
     return;
@@ -1650,6 +1743,8 @@ async function runGeneration() {
     currentMenuSlots = slots;
     document.getElementById('results-greeting').textContent = result.greeting;
     renderMenuCards();
+    renderStaplesPicker();
+    document.getElementById('staples-picker-panel').style.display = 'none';
     setResultsView('content');
   } catch (err) {
     console.error('献立生成に失敗しました:', err);
@@ -1688,9 +1783,63 @@ function buildProteinLabel(menu) {
   return p;
 }
 
+// タンパク質の指定に何度再試行しても一致しなかった場合の警告表示
+function buildProteinMismatchWarning() {
+  const p = document.createElement('p');
+  p.className = 'mismatch-warning';
+  p.textContent = '⚠️ 指定したタンパク質と異なる可能性があります。「他の提案」でもう一度お試しください。';
+  return p;
+}
+
+// 定番メニュー（手動登録・材料情報なし）の表示。通常のAIレシピ表示とは別の簡易表示にする
+function buildStapleBody(menu) {
+  const wrap = document.createElement('div');
+
+  const badge = document.createElement('p');
+  badge.className = 'slot-label';
+  badge.textContent = '📋 定番メニュー';
+  wrap.appendChild(badge);
+
+  if (menu.description) {
+    const desc = document.createElement('p');
+    desc.className = 'menu-desc';
+    desc.textContent = menu.description;
+    wrap.appendChild(desc);
+  }
+
+  if (menu.staple_url) {
+    const link = document.createElement('a');
+    link.href = menu.staple_url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'staple-link';
+    link.textContent = menu.staple_url;
+    wrap.appendChild(link);
+  }
+
+  return wrap;
+}
+
+// この枠がどのタンパク質を要求されたものかを示す（AIの実際の提案とズレていないか一目で確認できるようにする）
+function buildSlotLabel(slot) {
+  const p = document.createElement('p');
+  p.className = 'slot-label';
+  if (!slot) {
+    p.textContent = '🔀 自由枠';
+  } else if (slot === OMAKASE_LABEL) {
+    p.textContent = '🎲 おまかせ枠';
+  } else {
+    p.textContent = `📌 ${slot} の一品`;
+  }
+  return p;
+}
+
 function buildMenuCard(menu, index) {
   const card = document.createElement('div');
   card.className = 'menu-card';
+
+  card.appendChild(buildSlotLabel(currentMenuSlots[index]));
+  if (menu.proteinMismatch) card.appendChild(buildProteinMismatchWarning());
 
   const head = document.createElement('div');
   head.className = 'menu-card-head';
@@ -1753,7 +1902,7 @@ function buildMenuCard(menu, index) {
   const changeBtn = document.createElement('button');
   changeBtn.type = 'button';
   changeBtn.className = 'btn-small';
-  changeBtn.textContent = 'これは変えて';
+  changeBtn.textContent = '他の提案';
   changeBtn.addEventListener('click', () => regenerateCard(index, reasonInput.value, card));
   actions.appendChild(reasonInput);
   actions.appendChild(changeBtn);
@@ -1776,11 +1925,49 @@ function renderMenuCards() {
 }
 
 function updateConfirmButtonLabel() {
-  const checked = document.querySelectorAll('.adopt-checkbox:checked').length;
+  const menuChecked = document.querySelectorAll('.adopt-checkbox:checked').length;
+  const stapleChecked = document.querySelectorAll('.staple-pick-checkbox:checked').length;
+  const total = menuChecked + stapleChecked;
   const btn = document.getElementById('btn-confirm-adopt');
-  btn.textContent = `採用を確定（${checked}件）`;
-  btn.disabled = checked === 0;
+  btn.textContent = `採用を確定（${total}件）`;
+  btn.disabled = total === 0;
 }
+
+// 提案結果の下部にある「定番メニューから選ぶ」パネルの中身を描画する
+function renderStaplesPicker() {
+  const container = document.getElementById('staples-picker-list');
+  container.innerHTML = '';
+  const staples = getStaples();
+
+  if (staples.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = 'まだ定番メニューが登録されていません。ライブラリの「定番メニュー」から登録できます。';
+    container.appendChild(p);
+    return;
+  }
+
+  staples.forEach((staple, index) => {
+    const label = document.createElement('label');
+    label.className = 'staple-pick-row';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'staple-pick-checkbox';
+    checkbox.dataset.index = String(index);
+    checkbox.addEventListener('change', updateConfirmButtonLabel);
+    const span = document.createElement('span');
+    span.textContent = staple.name;
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+}
+
+document.getElementById('btn-toggle-staples-picker').addEventListener('click', () => {
+  const panel = document.getElementById('staples-picker-panel');
+  const hidden = panel.style.display === 'none' || !panel.style.display;
+  panel.style.display = hidden ? 'block' : 'none';
+});
 
 async function regenerateCard(index, reason, cardEl) {
   cardEl.classList.add('menu-card-loading');
@@ -1811,6 +1998,13 @@ document.getElementById('btn-confirm-adopt').addEventListener('click', () => {
     const checkbox = cardEl.querySelector('.adopt-checkbox');
     if (checkbox.checked) adopted.push(currentMenus[index]);
   });
+
+  const staples = getStaples();
+  document.querySelectorAll('.staple-pick-checkbox:checked').forEach((cb) => {
+    const staple = staples[Number(cb.dataset.index)];
+    if (staple) adopted.push(staplesToMenu(staple));
+  });
+
   if (adopted.length === 0) return;
   dateAssignReturnScreen = 'results';
   startDateAssignment(adopted);
@@ -1926,12 +2120,13 @@ const ShoppingList = (() => {
     menus.forEach((menu) => {
       menu.ingredients.forEach((ing) => {
         const key = ing.name + '|' + ing.unit;
+        const amount = Number(ing.amount) || 0; // スキーマ検証なしの応答でも文字列数値等に対応する
         if (map.has(key)) {
           const entry = map.get(key);
-          entry.amount += ing.amount;
+          entry.amount += amount;
           if (!entry.sources.includes(menu.name)) entry.sources.push(menu.name);
         } else {
-          map.set(key, { name: ing.name, unit: ing.unit, amount: ing.amount, category: ing.category, sources: [menu.name] });
+          map.set(key, { name: ing.name, unit: ing.unit, amount, category: ing.category, sources: [menu.name] });
         }
       });
     });
@@ -2409,31 +2604,35 @@ function buildDayDetailCard(dateStr, historyIndex, item) {
   title.textContent = menu.name;
   card.appendChild(title);
 
-  card.appendChild(buildProteinLabel(menu));
+  if (menu.isStaple) {
+    card.appendChild(buildStapleBody(menu));
+  } else {
+    card.appendChild(buildProteinLabel(menu));
 
-  const desc = document.createElement('p');
-  desc.className = 'menu-desc';
-  desc.textContent = menu.description;
-  card.appendChild(desc);
+    const desc = document.createElement('p');
+    desc.className = 'menu-desc';
+    desc.textContent = menu.description;
+    card.appendChild(desc);
 
-  const kidNote = document.createElement('p');
-  kidNote.className = 'kid-note';
-  kidNote.textContent = '👶 ' + menu.kid_note;
-  card.appendChild(kidNote);
+    const kidNote = document.createElement('p');
+    kidNote.className = 'kid-note';
+    kidNote.textContent = '👶 ' + menu.kid_note;
+    card.appendChild(kidNote);
 
-  const ingDetails = document.createElement('details');
-  const ingSummary = document.createElement('summary');
-  ingSummary.textContent = `材料（${menu.ingredients.length}）`;
-  ingDetails.appendChild(ingSummary);
-  ingDetails.appendChild(buildIngredientList(menu.ingredients));
-  card.appendChild(ingDetails);
+    const ingDetails = document.createElement('details');
+    const ingSummary = document.createElement('summary');
+    ingSummary.textContent = `材料（${menu.ingredients.length}）`;
+    ingDetails.appendChild(ingSummary);
+    ingDetails.appendChild(buildIngredientList(menu.ingredients));
+    card.appendChild(ingDetails);
 
-  const stepDetails = document.createElement('details');
-  const stepSummary = document.createElement('summary');
-  stepSummary.textContent = `手順（${menu.steps.length}ステップ）`;
-  stepDetails.appendChild(stepSummary);
-  stepDetails.appendChild(buildStepList(menu.steps));
-  card.appendChild(stepDetails);
+    const stepDetails = document.createElement('details');
+    const stepSummary = document.createElement('summary');
+    stepSummary.textContent = `手順（${menu.steps.length}ステップ）`;
+    stepDetails.appendChild(stepSummary);
+    stepDetails.appendChild(buildStepList(menu.steps));
+    card.appendChild(stepDetails);
+  }
 
   card.appendChild(buildRatingSection(dateStr, historyIndex, item));
 
@@ -2577,31 +2776,35 @@ function buildLibraryDetailCard(entry) {
   title.textContent = menu.name;
   card.appendChild(title);
 
-  card.appendChild(buildProteinLabel(menu));
+  if (menu.isStaple) {
+    card.appendChild(buildStapleBody(menu));
+  } else {
+    card.appendChild(buildProteinLabel(menu));
 
-  const desc = document.createElement('p');
-  desc.className = 'menu-desc';
-  desc.textContent = menu.description;
-  card.appendChild(desc);
+    const desc = document.createElement('p');
+    desc.className = 'menu-desc';
+    desc.textContent = menu.description;
+    card.appendChild(desc);
 
-  const kidNote = document.createElement('p');
-  kidNote.className = 'kid-note';
-  kidNote.textContent = '👶 ' + menu.kid_note;
-  card.appendChild(kidNote);
+    const kidNote = document.createElement('p');
+    kidNote.className = 'kid-note';
+    kidNote.textContent = '👶 ' + menu.kid_note;
+    card.appendChild(kidNote);
 
-  const ingDetails = document.createElement('details');
-  const ingSummary = document.createElement('summary');
-  ingSummary.textContent = `材料（${menu.ingredients.length}）`;
-  ingDetails.appendChild(ingSummary);
-  ingDetails.appendChild(buildIngredientList(menu.ingredients));
-  card.appendChild(ingDetails);
+    const ingDetails = document.createElement('details');
+    const ingSummary = document.createElement('summary');
+    ingSummary.textContent = `材料（${menu.ingredients.length}）`;
+    ingDetails.appendChild(ingSummary);
+    ingDetails.appendChild(buildIngredientList(menu.ingredients));
+    card.appendChild(ingDetails);
 
-  const stepDetails = document.createElement('details');
-  const stepSummary = document.createElement('summary');
-  stepSummary.textContent = `手順（${menu.steps.length}ステップ）`;
-  stepDetails.appendChild(stepSummary);
-  stepDetails.appendChild(buildStepList(menu.steps));
-  card.appendChild(stepDetails);
+    const stepDetails = document.createElement('details');
+    const stepSummary = document.createElement('summary');
+    stepSummary.textContent = `手順（${menu.steps.length}ステップ）`;
+    stepDetails.appendChild(stepSummary);
+    stepDetails.appendChild(buildStepList(menu.steps));
+    card.appendChild(stepDetails);
+  }
 
   const againBtn = document.createElement('button');
   againBtn.type = 'button';
@@ -2658,6 +2861,134 @@ document.querySelectorAll('#library-sort-toggle .segmented-btn').forEach((btn) =
   });
 });
 document.getElementById('btn-library-detail-close').addEventListener('click', () => closeLibraryDetail());
+
+// ==========================================================
+// 定番メニュー（ライブラリ内の管理画面・材料情報を持たない手動登録メニュー）
+// ==========================================================
+function getStaples() {
+  return StorageService.get('staples', []);
+}
+
+function saveStaplesList(list) {
+  StorageService.set('staples', list);
+}
+
+// adoptedHistoryに乗せられる形に変換する（ingredients/stepsは空のまま＝買い物リストには自動反映されない）
+function staplesToMenu(staple) {
+  return {
+    name: staple.name,
+    description: staple.memo || '',
+    protein: '',
+    cooking_time_min: 0,
+    kid_note: '',
+    ingredients: [],
+    steps: [],
+    isStaple: true,
+    staple_url: staple.url || ''
+  };
+}
+
+function renderStaplesList() {
+  const staples = getStaples();
+  const listEl = document.getElementById('staples-list');
+  const emptyEl = document.getElementById('staples-empty');
+  listEl.innerHTML = '';
+
+  if (staples.length === 0) {
+    emptyEl.style.display = 'block';
+    listEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  listEl.style.display = 'block';
+
+  staples.forEach((staple, index) => {
+    const card = document.createElement('div');
+    card.className = 'card staple-row';
+
+    const top = document.createElement('div');
+    top.className = 'staple-row-top';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = staple.name;
+    nameInput.placeholder = '料理名';
+    nameInput.addEventListener('input', () => {
+      staple.name = nameInput.value;
+      saveStaplesList(staples);
+    });
+    top.appendChild(nameInput);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'list-btn list-btn-delete';
+    deleteBtn.textContent = '×';
+    deleteBtn.addEventListener('click', () => {
+      staples.splice(index, 1);
+      saveStaplesList(staples);
+      renderStaplesList();
+    });
+    top.appendChild(deleteBtn);
+    card.appendChild(top);
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'text';
+    urlInput.value = staple.url || '';
+    urlInput.placeholder = 'URL（任意）';
+    urlInput.addEventListener('input', () => {
+      staple.url = urlInput.value;
+      saveStaplesList(staples);
+    });
+    card.appendChild(urlInput);
+
+    const memoInput = document.createElement('textarea');
+    memoInput.rows = 2;
+    memoInput.value = staple.memo || '';
+    memoInput.placeholder = '一言メモ（任意）';
+    memoInput.addEventListener('input', () => {
+      staple.memo = memoInput.value;
+      saveStaplesList(staples);
+    });
+    card.appendChild(memoInput);
+
+    listEl.appendChild(card);
+  });
+}
+
+document.getElementById('btn-add-staple').addEventListener('click', () => {
+  const nameInput = document.getElementById('input-staple-name');
+  const urlInput = document.getElementById('input-staple-url');
+  const memoInput = document.getElementById('input-staple-memo');
+  const name = nameInput.value.trim();
+  if (!name) return;
+
+  const staples = getStaples();
+  staples.push({ name, url: urlInput.value.trim(), memo: memoInput.value.trim() });
+  saveStaplesList(staples);
+
+  nameInput.value = '';
+  urlInput.value = '';
+  memoInput.value = '';
+  renderStaplesList();
+});
+
+function resetLibraryMode() {
+  document.querySelectorAll('#library-mode-toggle .segmented-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.mode === 'cooked');
+  });
+  document.getElementById('library-cooked-view').style.display = 'block';
+  document.getElementById('library-staples-view').style.display = 'none';
+}
+
+document.querySelectorAll('#library-mode-toggle .segmented-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#library-mode-toggle .segmented-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    const mode = btn.dataset.mode;
+    document.getElementById('library-cooked-view').style.display = mode === 'cooked' ? 'block' : 'none';
+    document.getElementById('library-staples-view').style.display = mode === 'staples' ? 'block' : 'none';
+    if (mode === 'staples') renderStaplesList();
+  });
+});
 
 // ==========================================================
 // 初期画面の確定(タブバーのアクティブ状態を含めてホームで初期化)
