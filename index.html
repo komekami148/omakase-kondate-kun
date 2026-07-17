@@ -1642,15 +1642,26 @@ const GeminiService = (() => {
     return Array.isArray(parsed.menus) ? parsed.menus.map(normalizeMenu) : [];
   }
 
-  // 429（レート制限）の場合は少し待ってから、それ以外の失敗は即座に1回だけ再試行する
+  // 429（レート制限）・503（サーバー混雑）は待機を挟みつつ複数回再試行し、それ以外は即座に1回だけ再試行する
   async function callWithRetry(fn) {
-    try {
-      return await fn();
-    } catch (firstErr) {
-      console.error('Gemini呼び出しに失敗。再試行します:', firstErr);
-      if (firstErr && firstErr.status === 429) await sleep(8000);
-      return await fn();
+    const waitTimes = [8000, 15000, 30000];
+    let lastErr;
+    for (let i = 0; i <= waitTimes.length; i++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        console.error(`Gemini呼び出しに失敗（試行${i + 1}）:`, err);
+        const retryable = err && (err.status === 429 || err.status === 503);
+        if (!retryable) {
+          if (i === 0) return await fn();
+          throw err;
+        }
+        if (i === waitTimes.length) throw err;
+        await sleep(waitTimes[i]);
+      }
     }
+    throw lastErr;
   }
 
   // タンパク質の指定と一致するまで再試行する（呼び出しの間隔を空けてレート制限を避ける）。
