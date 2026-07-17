@@ -1597,6 +1597,8 @@ const GeminiService = (() => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(settings.apiKey)}`;
 
     let res;
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), 20000);
     try {
       res = await fetch(url, {
         method: 'POST',
@@ -1607,10 +1609,18 @@ const GeminiService = (() => {
             responseMimeType: 'application/json',
             responseSchema: schema
           }
-        })
+        }),
+        signal: timeoutController.signal
       });
     } catch (err) {
+      if (err.name === 'AbortError') {
+        const timeoutErr = networkError('応答がありませんでした（タイムアウト）');
+        timeoutErr.status = 'TIMEOUT';
+        throw timeoutErr;
+      }
       throw networkError('通信に失敗しました: ' + err.message);
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     if (!res.ok) {
@@ -1642,26 +1652,17 @@ const GeminiService = (() => {
     return Array.isArray(parsed.menus) ? parsed.menus.map(normalizeMenu) : [];
   }
 
-  // 429（レート制限）・503（サーバー混雑）は待機を挟みつつ複数回再試行し、それ以外は即座に1回だけ再試行する
+  // 429（レート制限）・503（サーバー混雑）・タイムアウトは少し待って1回だけ再試行し、それ以外は即座に1回だけ再試行する。
+  // タンパク質不一致の再試行（呼び出し元のループ）と掛け算にならないよう、ここでの再試行は1回までに抑える
   async function callWithRetry(fn) {
-    const waitTimes = [8000, 15000, 30000];
-    let lastErr;
-    for (let i = 0; i <= waitTimes.length; i++) {
-      try {
-        return await fn();
-      } catch (err) {
-        lastErr = err;
-        console.error(`Gemini呼び出しに失敗（試行${i + 1}）:`, err);
-        const retryable = err && (err.status === 429 || err.status === 503);
-        if (!retryable) {
-          if (i === 0) return await fn();
-          throw err;
-        }
-        if (i === waitTimes.length) throw err;
-        await sleep(waitTimes[i]);
-      }
+    try {
+      return await fn();
+    } catch (firstErr) {
+      console.error('Gemini呼び出しに失敗。再試行します:', firstErr);
+      const retryable = firstErr && (firstErr.status === 429 || firstErr.status === 503 || firstErr.status === 'TIMEOUT');
+      if (retryable) await sleep(5000);
+      return await fn();
     }
-    throw lastErr;
   }
 
   // タンパク質の指定と一致するまで再試行する（呼び出しの間隔を空けてレート制限を避ける）。
