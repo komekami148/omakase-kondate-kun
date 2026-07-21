@@ -394,10 +394,6 @@
     display: flex;
     flex-direction: column;
   }
-  .shopping-item .checked-off {
-    text-decoration: line-through;
-    color: var(--color-text-sub);
-  }
   .shopping-item-sub {
     font-size: 11px;
     color: var(--color-text-sub);
@@ -849,7 +845,7 @@
           <button class="icon-btn" id="btn-calendar-next-month" aria-label="翌月">›</button>
         </div>
         <div class="calendar-weekdays">
-          <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+          <span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
       </div>
@@ -2198,14 +2194,28 @@ let currentShoppingList = { vegetables: [], meatFish: [], other: [], pantry: [] 
 let currentShoppingMenus = [];
 
 // 直近で「採用を確定」した分だけを対象にする（同じadoptedAtを持つ最新バッチ）
-function getLatestBatchMenus() {
+function getLatestBatchInfo() {
   const history = StorageService.get('adoptedHistory', []);
-  if (history.length === 0) return [];
+  if (history.length === 0) return { batchKey: null, menus: [] };
   const latestAdoptedAt = history.reduce((max, item) => (item.adoptedAt > max ? item.adoptedAt : max), history[0].adoptedAt);
-  return history.filter((item) => item.adoptedAt === latestAdoptedAt).map((item) => item.menu);
+  const menus = history.filter((item) => item.adoptedAt === latestAdoptedAt).map((item) => item.menu);
+  return { batchKey: String(latestAdoptedAt), menus };
 }
 
-function buildChecklistItem(labelText, subtitleText) {
+// チェック済み商品はバッチ（買い物リストの世代）ごとに保存する。
+// 別のバッチを開いたら古いチェック状態は自動的に破棄し、肥大化を防ぐ
+function getCheckedItemSet(batchKey) {
+  const saved = StorageService.get('shoppingChecked', { batchKey: null, items: [] });
+  if (saved.batchKey !== batchKey) return new Set();
+  return new Set(saved.items);
+}
+function markItemChecked(batchKey, itemKey) {
+  const set = getCheckedItemSet(batchKey);
+  set.add(itemKey);
+  StorageService.set('shoppingChecked', { batchKey, items: [...set] });
+}
+
+function buildChecklistItem(labelText, subtitleText, onCheck) {
   const li = document.createElement('li');
   const label = document.createElement('label');
   label.className = 'shopping-item';
@@ -2225,7 +2235,7 @@ function buildChecklistItem(labelText, subtitleText) {
   }
 
   checkbox.addEventListener('change', () => {
-    span.classList.toggle('checked-off', checkbox.checked);
+    if (checkbox.checked) onCheck();
   });
   label.appendChild(checkbox);
   label.appendChild(textWrap);
@@ -2233,13 +2243,19 @@ function buildChecklistItem(labelText, subtitleText) {
   return li;
 }
 
-// formatterは { label, subtitle } を返す関数
-function renderShoppingSection(listElId, sectionElId, items, formatter) {
+// formatterは { label, subtitle } を返す関数。チェック済みの商品はあらかじめitemsから除外しておくこと
+function renderShoppingSection(listElId, sectionElId, items, formatter, batchKey, keyFn) {
   const ul = document.getElementById(listElId);
   ul.innerHTML = '';
   items.forEach((item) => {
     const { label, subtitle } = formatter(item);
-    ul.appendChild(buildChecklistItem(label, subtitle));
+    const itemKey = keyFn(item);
+    const li = buildChecklistItem(label, subtitle, () => {
+      markItemChecked(batchKey, itemKey);
+      li.remove();
+      document.getElementById(sectionElId).style.display = ul.children.length ? 'block' : 'none';
+    });
+    ul.appendChild(li);
   });
   document.getElementById(sectionElId).style.display = items.length ? 'block' : 'none';
 }
@@ -2252,7 +2268,7 @@ function updateShareButtonsVisibility() {
 }
 
 function renderShoppingScreen() {
-  const menus = getLatestBatchMenus();
+  const { batchKey, menus } = getLatestBatchInfo();
   const emptyCard = document.getElementById('shopping-empty');
   const content = document.getElementById('shopping-content');
 
@@ -2264,18 +2280,28 @@ function renderShoppingScreen() {
   emptyCard.style.display = 'none';
   content.style.display = 'block';
 
-  const list = ShoppingList.classify(menus, settings.pantryStaples);
+  const checkedSet = getCheckedItemSet(batchKey);
+  const itemKey = (i) => i.name + '|' + i.unit;
+  const pantryKey = (p) => 'pantry|' + p.name;
+
+  const rawList = ShoppingList.classify(menus, settings.pantryStaples);
+  const list = {
+    vegetables: rawList.vegetables.filter((i) => !checkedSet.has(itemKey(i))),
+    meatFish: rawList.meatFish.filter((i) => !checkedSet.has(itemKey(i))),
+    other: rawList.other.filter((i) => !checkedSet.has(itemKey(i))),
+    pantry: rawList.pantry.filter((p) => !checkedSet.has(pantryKey(p)))
+  };
   const amountFormatter = (i) => ({
     label: `${i.name} ${ShoppingList.formatAmount(i.amount)}${i.unit}`,
     subtitle: i.sources.join('・')
   });
-  renderShoppingSection('list-shopping-vegetables', 'section-vegetables', list.vegetables, amountFormatter);
-  renderShoppingSection('list-shopping-meatfish', 'section-meatfish', list.meatFish, amountFormatter);
-  renderShoppingSection('list-shopping-other', 'section-other', list.other, amountFormatter);
+  renderShoppingSection('list-shopping-vegetables', 'section-vegetables', list.vegetables, amountFormatter, batchKey, itemKey);
+  renderShoppingSection('list-shopping-meatfish', 'section-meatfish', list.meatFish, amountFormatter, batchKey, itemKey);
+  renderShoppingSection('list-shopping-other', 'section-other', list.other, amountFormatter, batchKey, itemKey);
   renderShoppingSection('list-shopping-pantry', 'section-pantry', list.pantry, (p) => ({
     label: p.name,
     subtitle: p.sources.join('・')
-  }));
+  }), batchKey, pantryKey);
 
   const menuUl = document.getElementById('list-shopping-menus');
   menuUl.innerHTML = '';
@@ -2435,7 +2461,7 @@ function renderCalendarScreen() {
   const plannedByDate = getPlannedByDate();
   const notes = getCalendarNotes();
   const todayStr = formatDateLocal(new Date());
-  const firstWeekday = new Date(year, month, 1).getDay();
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // 月曜=0始まりに変換
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const grid = document.getElementById('calendar-grid');
