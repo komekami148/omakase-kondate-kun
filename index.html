@@ -2253,6 +2253,9 @@ function renderShoppingSection(listElId, sectionElId, items, formatter, batchKey
     const li = buildChecklistItem(label, subtitle, () => {
       markItemChecked(batchKey, itemKey);
       li.remove();
+      // コピー・共有ボタンが参照するcurrentShoppingList側の配列（＝items自身）からも取り除く
+      const idx = items.indexOf(item);
+      if (idx !== -1) items.splice(idx, 1);
       document.getElementById(sectionElId).style.display = ul.children.length ? 'block' : 'none';
     });
     ul.appendChild(li);
