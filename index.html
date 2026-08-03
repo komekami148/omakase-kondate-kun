@@ -1210,7 +1210,9 @@ document.getElementById('btn-export').addEventListener('click', () => {
   const data = {
     settings: StorageService.get('settings', null),
     adoptedHistory: StorageService.get('adoptedHistory', []),
-    lastConditions: StorageService.get('lastConditions', null)
+    lastConditions: StorageService.get('lastConditions', null),
+    staples: StorageService.get('staples', []),
+    calendarNotes: StorageService.get('calendarNotes', {})
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1237,6 +1239,8 @@ document.getElementById('input-import-file').addEventListener('change', (e) => {
       if (data.settings) StorageService.set('settings', data.settings);
       if (data.adoptedHistory) StorageService.set('adoptedHistory', data.adoptedHistory);
       if (data.lastConditions) StorageService.set('lastConditions', data.lastConditions);
+      if (data.staples) StorageService.set('staples', data.staples);
+      if (data.calendarNotes) StorageService.set('calendarNotes', data.calendarNotes);
       settings = Object.assign({}, DEFAULT_SETTINGS, StorageService.get('settings', {}));
       initSettingsScreen();
       hint.textContent = '読み込みました。';
