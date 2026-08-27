@@ -477,7 +477,7 @@
     gap: 4px;
   }
   .calendar-cell {
-    min-height: 56px;
+    min-height: 72px;
     border-radius: 8px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -488,30 +488,42 @@
   }
   .calendar-cell-blank { background: transparent; border: none; }
   .calendar-day-num { font-size: 11px; color: var(--color-text-sub); }
-  .calendar-today .calendar-day-num { color: var(--color-primary-dark); font-weight: 700; }
+  .calendar-today {
+    background: rgba(224, 138, 79, 0.10);
+    border: 2px solid var(--color-primary);
+  }
+  .calendar-today .calendar-day-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 700;
+  }
   .calendar-clickable { cursor: pointer; }
   .calendar-has-menu { border-color: var(--color-primary); }
-  .calendar-note-label {
+  .calendar-note-label,
+  .calendar-menu-label,
+  .calendar-lunch-label {
     font-size: 10px;
+    margin-top: 2px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    line-height: 1.2;
+    word-break: break-all;
+  }
+  .calendar-note-label {
     color: var(--color-text-sub);
     font-style: italic;
-    margin-top: 2px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-height: 1.2;
   }
-  .calendar-menu-label {
-    font-size: 10px;
-    color: var(--color-text);
-    margin-top: 2px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-height: 1.2;
-  }
+  .calendar-menu-label { color: var(--color-text); }
+  /* お昼ごはんは夕食と見分けやすいよう別色にする */
+  .calendar-lunch-label { color: #7a9a5a; }
   .day-detail-move-row {
     display: flex;
     align-items: center;
@@ -619,14 +631,6 @@
     align-items: center;
   }
   .staple-row-top input { flex: 1; }
-  .staple-link {
-    display: inline-block;
-    font-size: 12px;
-    color: var(--color-primary-dark);
-    text-decoration: underline;
-    margin: 2px 0 6px;
-    word-break: break-all;
-  }
   .mismatch-warning {
     font-size: 12px;
     color: #c0554d;
@@ -652,6 +656,41 @@
   }
   .staple-pick-row:last-child { border-bottom: none; }
   .staple-pick-row input { width: 18px; height: 18px; flex-shrink: 0; }
+  /* 定番メニューを日付に入れる行（ライブラリ側・カレンダー日付詳細側で共用） */
+  .staple-assign-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .staple-assign-row:last-child { border-bottom: none; }
+  .staple-assign-name {
+    flex: 1;
+    font-size: 14px;
+    min-width: 0;
+    word-break: break-word;
+  }
+  .staple-date-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .staple-date-row input[type="date"] {
+    flex: 1;
+    width: auto;
+  }
+  .staple-open-link {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    text-decoration: underline;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  .lunch-field { margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -932,7 +971,19 @@
     + '</svg>';
   const iconDataUri = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
 
-  document.getElementById('apple-touch-icon-link').setAttribute('href', iconDataUri);
+  // headにlink要素が無い環境（Webに公開した場合など）でも動くよう、無ければ自分で作る
+  function ensureLink(id, rel) {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('link');
+      el.id = id;
+      el.rel = rel;
+      document.head.appendChild(el);
+    }
+    return el;
+  }
+
+  ensureLink('apple-touch-icon-link', 'apple-touch-icon').setAttribute('href', iconDataUri);
 
   const manifest = {
     name: 'おまかせこんだてくん',
@@ -947,7 +998,7 @@
     ]
   };
   const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-  document.getElementById('app-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+  ensureLink('app-manifest', 'manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
 })();
 
 // ==========================================================
@@ -1212,7 +1263,8 @@ document.getElementById('btn-export').addEventListener('click', () => {
     adoptedHistory: StorageService.get('adoptedHistory', []),
     lastConditions: StorageService.get('lastConditions', null),
     staples: StorageService.get('staples', []),
-    calendarNotes: StorageService.get('calendarNotes', {})
+    calendarNotes: StorageService.get('calendarNotes', {}),
+    lunchNotes: StorageService.get('lunchNotes', {})
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1241,6 +1293,7 @@ document.getElementById('input-import-file').addEventListener('change', (e) => {
       if (data.lastConditions) StorageService.set('lastConditions', data.lastConditions);
       if (data.staples) StorageService.set('staples', data.staples);
       if (data.calendarNotes) StorageService.set('calendarNotes', data.calendarNotes);
+      if (data.lunchNotes) StorageService.set('lunchNotes', data.lunchNotes);
       settings = Object.assign({}, DEFAULT_SETTINGS, StorageService.get('settings', {}));
       initSettingsScreen();
       hint.textContent = '読み込みました。';
@@ -1820,16 +1873,28 @@ function buildStapleBody(menu) {
   }
 
   if (menu.staple_url) {
-    const link = document.createElement('a');
-    link.href = menu.staple_url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.className = 'staple-link';
-    link.textContent = menu.staple_url;
-    wrap.appendChild(link);
+    wrap.appendChild(buildStapleOpenLink(menu.staple_url));
   }
 
   return wrap;
+}
+
+// 定番メニューのURLを「タップで開けるリンク」として生成する。
+// http/httpsが無い入力にも自動でhttps://を補い、スマホからそのまま飛べるようにする
+function normalizeStapleUrl(url) {
+  const trimmed = (url || '').trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : 'https://' + trimmed;
+}
+
+function buildStapleOpenLink(url) {
+  const link = document.createElement('a');
+  link.href = normalizeStapleUrl(url);
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.className = 'staple-open-link';
+  link.textContent = '🔗 レシピのページを開く';
+  return link;
 }
 
 // この枠がどのタンパク質を要求されたものかを示す（AIの実際の提案とズレていないか一目で確認できるようにする）
@@ -2376,7 +2441,8 @@ function renderTodayCard() {
 
     const meta = document.createElement('p');
     meta.className = 'menu-meta';
-    meta.textContent = `⏱ ${item.menu.cooking_time_min}分`;
+    // 定番メニューは調理時間を持たないため、時間の代わりにバッジを表示する
+    meta.textContent = item.menu.isStaple ? '📋 定番メニュー' : `⏱ ${item.menu.cooking_time_min}分`;
     card.appendChild(meta);
 
     container.appendChild(card);
@@ -2467,6 +2533,7 @@ function renderCalendarScreen() {
 
   const plannedByDate = getPlannedByDate();
   const notes = getCalendarNotes();
+  const lunches = getLunchNotes();
   const todayStr = formatDateLocal(new Date());
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // 月曜=0始まりに変換
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -2491,14 +2558,26 @@ function renderCalendarScreen() {
     dayNum.textContent = String(day);
     cell.appendChild(dayNum);
 
+    // お昼ごはん（フリー入力）
+    if (lunches[dateStr]) {
+      const lunchLabel = document.createElement('div');
+      lunchLabel.className = 'calendar-lunch-label';
+      lunchLabel.textContent = '☀ ' + lunches[dateStr];
+      cell.appendChild(lunchLabel);
+    }
+
+    // 夕食（割り当て済みの献立）
     const entries = plannedByDate.get(dateStr);
     if (entries && entries.length > 0) {
       cell.classList.add('calendar-has-menu');
       const label = document.createElement('div');
       label.className = 'calendar-menu-label';
-      label.textContent = entries.map((e) => e.item.menu.name).join('・');
+      label.textContent = '🍽 ' + entries.map((e) => e.item.menu.name).join('・');
       cell.appendChild(label);
-    } else if (notes[dateStr]) {
+    }
+
+    // メモ（外食の予定など）。献立もお昼も無い日だけ表示して情報量を抑える
+    if (notes[dateStr] && !lunches[dateStr] && !(entries && entries.length > 0)) {
       const noteLabel = document.createElement('div');
       noteLabel.className = 'calendar-note-label';
       noteLabel.textContent = notes[dateStr];
@@ -2512,8 +2591,30 @@ function renderCalendarScreen() {
   }
 }
 
+// 日付文字列(YYYY-MM-DD)を「8月27日（木）」形式に整形する
+function formatDateLabelJa(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const weekday = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+  return `${d.getMonth() + 1}月${d.getDate()}日（${weekday}）`;
+}
+
 function getCalendarNotes() {
   return StorageService.get('calendarNotes', {});
+}
+
+// お昼ごはん（日付ごとのフリー入力）。夕食の献立とは別枠で保持する
+function getLunchNotes() {
+  return StorageService.get('lunchNotes', {});
+}
+
+function setLunchNote(dateStr, text) {
+  const lunches = getLunchNotes();
+  if (text) {
+    lunches[dateStr] = text;
+  } else {
+    delete lunches[dateStr];
+  }
+  StorageService.set('lunchNotes', lunches);
 }
 
 function setCalendarNote(dateStr, text) {
@@ -2530,11 +2631,29 @@ function buildDayNoteCard(dateStr) {
   const card = document.createElement('div');
   card.className = 'card';
 
-  const dateObj = new Date(dateStr + 'T00:00:00');
-  const weekday = ['日', '月', '火', '水', '木', '金', '土'][dateObj.getDay()];
   const heading = document.createElement('h3');
-  heading.textContent = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日（${weekday}）`;
+  heading.textContent = formatDateLabelJa(dateStr);
   card.appendChild(heading);
+
+  // お昼ごはん欄（フリー入力）。入力するたびに保存し、カレンダー本体にも即反映する
+  const lunchWrap = document.createElement('div');
+  lunchWrap.className = 'lunch-field';
+
+  const lunchLabel = document.createElement('p');
+  lunchLabel.className = 'hint';
+  lunchLabel.textContent = '☀️ お昼ごはん';
+  lunchWrap.appendChild(lunchLabel);
+
+  const lunchInput = document.createElement('textarea');
+  lunchInput.rows = 2;
+  lunchInput.placeholder = '例: そうめん、冷凍チャーハン、給食';
+  lunchInput.value = getLunchNotes()[dateStr] || '';
+  lunchInput.addEventListener('input', () => {
+    setLunchNote(dateStr, lunchInput.value.trim());
+    renderCalendarScreen();
+  });
+  lunchWrap.appendChild(lunchInput);
+  card.appendChild(lunchWrap);
 
   const label = document.createElement('p');
   label.className = 'hint';
@@ -2546,7 +2665,8 @@ function buildDayNoteCard(dateStr) {
   textarea.placeholder = '例: 外食、旅行中など';
   textarea.value = getCalendarNotes()[dateStr] || '';
   textarea.addEventListener('input', () => {
-    setCalendarNote(dateStr, textarea.value);
+    setCalendarNote(dateStr, textarea.value.trim());
+    renderCalendarScreen();
   });
   card.appendChild(textarea);
 
@@ -2562,9 +2682,70 @@ function openDayDetail(dateStr) {
   entries.forEach(({ index, item }) => {
     content.appendChild(buildDayDetailCard(dateStr, index, item));
   });
+  // 同日に複数の献立は割り当てない方針のため、まだ献立が無い日にだけ選択カードを出す
+  if (entries.length === 0) {
+    content.appendChild(buildDayStaplePickerCard(dateStr));
+  }
 
   document.getElementById('calendar-grid-view').style.display = 'none';
   document.getElementById('calendar-day-detail').style.display = 'block';
+}
+
+// カレンダーの日付詳細から、登録済みの定番メニューをその日の献立として入れるカード
+function buildDayStaplePickerCard(dateStr) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const heading = document.createElement('h3');
+  heading.textContent = '定番メニューから入れる';
+  card.appendChild(heading);
+
+  const staples = getStaples();
+  if (staples.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'まだ定番メニューが登録されていません。ライブラリの「定番メニュー」から登録できます。';
+    card.appendChild(empty);
+    return card;
+  }
+
+  const lead = document.createElement('p');
+  lead.className = 'hint';
+  lead.textContent = 'AIに考えてもらわなくても、この日の献立としてすぐ入れられます。';
+  card.appendChild(lead);
+
+  const hint = document.createElement('p');
+  hint.className = 'hint';
+
+  staples.forEach((staple) => {
+    const row = document.createElement('div');
+    row.className = 'staple-assign-row';
+
+    const name = document.createElement('span');
+    name.className = 'staple-assign-name';
+    name.textContent = staple.name;
+    row.appendChild(name);
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn-small';
+    addBtn.textContent = '入れる';
+    addBtn.addEventListener('click', () => {
+      const result = assignStapleToDate(staple, dateStr);
+      if (result.ok) {
+        renderCalendarScreen();
+        openDayDetail(dateStr); // 入れた献立が見えるよう詳細を開き直す
+      } else {
+        hint.textContent = result.message;
+      }
+    });
+    row.appendChild(addBtn);
+
+    card.appendChild(row);
+  });
+
+  card.appendChild(hint);
+  return card;
 }
 
 function hideDayDetail() {
@@ -2933,6 +3114,29 @@ function staplesToMenu(staple) {
   };
 }
 
+// 定番メニューを指定日の献立として adoptedHistory に追加する。
+// 「同じ日に複数の献立は割り当てない」既存ルールはそのまま維持する
+function assignStapleToDate(staple, dateStr) {
+  const name = (staple.name || '').trim();
+  if (!name) return { ok: false, message: '料理名を入力してください。' };
+  if (!dateStr) return { ok: false, message: '日付を選んでください。' };
+
+  const history = StorageService.get('adoptedHistory', []);
+  if (history.some((h) => h.plannedDate === dateStr)) {
+    return { ok: false, message: `${formatDateLabelJa(dateStr)}にはすでに献立が入っています。別の日を選ぶか、カレンダーから入れ替えてください。` };
+  }
+
+  history.push({
+    adoptedAt: new Date().toISOString(),
+    plannedDate: dateStr,
+    rating: null,
+    ratingMemo: '',
+    menu: staplesToMenu(staple)
+  });
+  StorageService.set('adoptedHistory', history);
+  return { ok: true, message: `${formatDateLabelJa(dateStr)}に入れました。` };
+}
+
 function renderStaplesList() {
   const staples = getStaples();
   const listEl = document.getElementById('staples-list');
@@ -2980,11 +3184,20 @@ function renderStaplesList() {
     urlInput.type = 'text';
     urlInput.value = staple.url || '';
     urlInput.placeholder = 'URL（任意）';
+    card.appendChild(urlInput);
+
+    // URLが入っていれば、その下にタップで開けるリンクを表示する
+    const openLink = buildStapleOpenLink(staple.url || '');
+    openLink.style.display = staple.url ? 'inline-block' : 'none';
+    card.appendChild(openLink);
+
     urlInput.addEventListener('input', () => {
       staple.url = urlInput.value;
       saveStaplesList(staples);
+      const trimmed = urlInput.value.trim();
+      openLink.style.display = trimmed ? 'inline-block' : 'none';
+      openLink.href = normalizeStapleUrl(trimmed);
     });
-    card.appendChild(urlInput);
 
     const memoInput = document.createElement('textarea');
     memoInput.rows = 2;
@@ -2995,6 +3208,31 @@ function renderStaplesList() {
       saveStaplesList(staples);
     });
     card.appendChild(memoInput);
+
+    // 日付を選んで、そのままカレンダーへ入れられるようにする
+    const assignRow = document.createElement('div');
+    assignRow.className = 'staple-date-row';
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.value = formatDateLocal(new Date());
+    assignRow.appendChild(dateInput);
+
+    const assignBtn = document.createElement('button');
+    assignBtn.type = 'button';
+    assignBtn.className = 'btn-small';
+    assignBtn.textContent = 'カレンダーに入れる';
+    assignRow.appendChild(assignBtn);
+    card.appendChild(assignRow);
+
+    const assignHint = document.createElement('p');
+    assignHint.className = 'hint';
+    card.appendChild(assignHint);
+
+    assignBtn.addEventListener('click', () => {
+      const result = assignStapleToDate(staple, dateInput.value);
+      assignHint.textContent = result.message;
+    });
 
     listEl.appendChild(card);
   });
