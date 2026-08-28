@@ -34,6 +34,7 @@
     max-width: 480px;
     margin: 0 auto;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     background: var(--color-bg);
@@ -70,9 +71,15 @@
   main {
     flex: 1;
     padding: 20px 16px 32px;
+    display: flex;
+    flex-direction: column;
   }
   .screen { display: none; }
-  .screen.active { display: block; }
+  .screen.active {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
   .card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -471,23 +478,47 @@
     color: var(--color-text-sub);
     margin-bottom: 4px;
   }
+  /* カレンダー画面だけ、左右と下の余白を少し食い込ませてマス目を広く取る */
+  #screen-calendar.active {
+    display: flex;
+    flex-direction: column;
+    margin: 0 -8px -16px;
+  }
+  #calendar-grid-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  #calendar-day-detail { padding: 0 8px; }
+  .calendar-header, .calendar-weekdays { padding-left: 8px; padding-right: 8px; }
   .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+    gap: 3px;
+    /* 余った高さを行に分配し、画面下まで使い切る */
+    flex: 1 1 auto;
+    grid-auto-rows: minmax(76px, 1fr);
   }
   .calendar-cell {
-    min-height: 72px;
+    min-height: 0;
     border-radius: 8px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    padding: 4px;
+    padding: 3px 3px 4px;
     font-size: 11px;
     display: flex;
     flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
   }
   .calendar-cell-blank { background: transparent; border: none; }
-  .calendar-day-num { font-size: 11px; color: var(--color-text-sub); }
+  .calendar-day-num {
+    font-size: 11px;
+    color: var(--color-text-sub);
+    flex-shrink: 0;
+    line-height: 1.1;
+  }
   .calendar-today {
     background: rgba(224, 138, 79, 0.10);
     border: 2px solid var(--color-primary);
@@ -496,8 +527,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: var(--color-primary);
     color: #fff;
@@ -508,22 +539,42 @@
   .calendar-note-label,
   .calendar-menu-label,
   .calendar-lunch-label {
-    font-size: 10px;
-    margin-top: 2px;
+    font-size: 9.5px;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
     overflow: hidden;
+    overflow-wrap: anywhere;
     display: -webkit-box;
-    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
-    line-height: 1.2;
-    word-break: break-all;
+    /* 絵文字の代わりに左の縦線で種別を示し、1行あたりの文字数を稼ぐ */
+    padding-left: 4px;
+    border-left: 2px solid transparent;
+    flex: 0 1 auto;
+    min-height: 0;
   }
   .calendar-note-label {
     color: var(--color-text-sub);
     font-style: italic;
+    border-left-color: var(--color-border);
+    -webkit-line-clamp: 4;
   }
-  .calendar-menu-label { color: var(--color-text); }
+  .calendar-menu-label {
+    color: var(--color-text);
+    /* 夕食名が一番長いため、縦線をやめてマス目の幅いっぱいに文字を入れる */
+    border-left: none;
+    padding-left: 0;
+    -webkit-line-clamp: 5;
+  }
+  /* お昼ごはんも入っている日は、その分だけ夕食名の行数を控える */
+  .calendar-cell:has(.calendar-lunch-label) .calendar-menu-label {
+    -webkit-line-clamp: 4;
+  }
   /* お昼ごはんは夕食と見分けやすいよう別色にする */
-  .calendar-lunch-label { color: #7a9a5a; }
+  .calendar-lunch-label {
+    color: #6f8f4f;
+    border-left-color: #a8c47e;
+    -webkit-line-clamp: 2;
+  }
   .day-detail-move-row {
     display: flex;
     align-items: center;
@@ -2562,7 +2613,7 @@ function renderCalendarScreen() {
     if (lunches[dateStr]) {
       const lunchLabel = document.createElement('div');
       lunchLabel.className = 'calendar-lunch-label';
-      lunchLabel.textContent = '☀ ' + lunches[dateStr];
+      lunchLabel.textContent = lunches[dateStr];
       cell.appendChild(lunchLabel);
     }
 
@@ -2572,7 +2623,7 @@ function renderCalendarScreen() {
       cell.classList.add('calendar-has-menu');
       const label = document.createElement('div');
       label.className = 'calendar-menu-label';
-      label.textContent = '🍽 ' + entries.map((e) => e.item.menu.name).join('・');
+      label.textContent = entries.map((e) => e.item.menu.name).join('・');
       cell.appendChild(label);
     }
 
@@ -2751,7 +2802,8 @@ function buildDayStaplePickerCard(dateStr) {
 function hideDayDetail() {
   document.getElementById('calendar-day-detail').style.display = 'none';
   document.getElementById('calendar-day-detail-content').innerHTML = '';
-  document.getElementById('calendar-grid-view').style.display = 'block';
+  // CSS側で縦フレックスにしているため、blockではなくflexに戻す（マス目の高さ引き伸ばしを維持）
+  document.getElementById('calendar-grid-view').style.display = 'flex';
 }
 
 function moveMenuToDate(historyIndex, newDateStr) {
