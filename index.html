@@ -1583,6 +1583,29 @@ const GeminiService = (() => {
     return history.filter((item) => new Date(item.adoptedAt).getTime() >= cutoffMs).map((item) => item.menu.name);
   }
 
+  // 星評価から「好みの傾向」と「回避リスト」を作る（Phase2仕様書§8の引き継ぎメモに対応）。
+  // ★4以上=好みの傾向として要約、★2以下=回避リストへ。同じ料理が両方に該当する場合は
+  // 履歴の並び順（採用日順）で後から付いた評価を優先する。
+  function getRatingInsights() {
+    const history = StorageService.get('adoptedHistory', []);
+    const likedMap = new Map();
+    const avoidSet = new Set();
+    history.forEach((item) => {
+      const name = item.menu && item.menu.name;
+      if (!name || typeof item.rating !== 'number') return;
+      if (item.rating >= 4) {
+        likedMap.set(name, item.ratingMemo || '');
+        avoidSet.delete(name);
+      } else if (item.rating <= 2) {
+        avoidSet.add(name);
+        likedMap.delete(name);
+      }
+    });
+    // プロンプト肥大化を避けるため、好みの傾向は直近分に絞る
+    const likedLines = [...likedMap.entries()].slice(-15).map(([name, memo]) => (memo ? `${name}（${memo}）` : name));
+    return { likedLines, avoidNames: [...avoidSet] };
+  }
+
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -1628,7 +1651,8 @@ const GeminiService = (() => {
 
   function buildPrompt(currentConditions, appSettings, options) {
     const opts = options || {};
-    const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...(opts.excludeNames || [])])];
+    const insights = getRatingInsights();
+    const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...insights.avoidNames, ...(opts.excludeNames || [])])];
     const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
 
     let prompt = [
@@ -1640,8 +1664,12 @@ const GeminiService = (() => {
       '【今回の条件】',
       buildDishInstruction(opts.slot),
       ...buildConditionLines(currentConditions),
-      `・避けてほしい料理（直近14日に採用済み、または今回すでに提案済みのもの）: ${avoidText}`
+      `・避けてほしい料理（直近14日に採用済み、過去に低評価だった、または今回すでに提案済みのもの）: ${avoidText}`
     ].join('\n');
+
+    if (insights.likedLines.length > 0) {
+      prompt += `\n\n【この家庭の好みの傾向（過去に★4以上だった料理より）】\n${insights.likedLines.join('、')}\nこれらの味付け・食材・調理法の傾向を参考にしつつ、同じ料理そのものは提案しないでください。`;
+    }
 
     if (opts.changeReason) {
       prompt += `\n\n【差し替え理由】\n利用者から次の理由でこの1品の差し替えを希望されています:「${opts.changeReason}」。これを踏まえて提案してください（タンパク質の指定は変わりません）。`;
@@ -1651,10 +1679,11 @@ const GeminiService = (() => {
   }
 
   function buildBatchPrompt(currentConditions, appSettings, slots) {
-    const avoidNames = getRecentAdoptedNames(14);
+    const insights = getRatingInsights();
+    const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...insights.avoidNames])];
     const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
 
-    return [
+    const lines = [
       'あなたは家庭料理の献立アドバイザーです。',
       '',
       '【家族プロフィール】',
@@ -1663,9 +1692,20 @@ const GeminiService = (() => {
       '【今回の条件】',
       buildBatchDishInstruction(slots),
       ...buildConditionLines(currentConditions),
-      `・避けてほしい料理（直近14日に採用済み）: ${avoidText}`,
+      `・避けてほしい料理（直近14日に採用済み、または過去に低評価だった）: ${avoidText}`,
       '・同じ食材やレシピの使い回しを避け、品目ごとに違うレシピにしてください。'
-    ].join('\n');
+    ];
+
+    if (insights.likedLines.length > 0) {
+      lines.push(
+        '',
+        '【この家庭の好みの傾向（過去に★4以上だった料理より）】',
+        `${insights.likedLines.join('、')}`,
+        'これらの味付け・食材・調理法の傾向を参考にしつつ、同じ料理そのものは提案しないでください。'
+      );
+    }
+
+    return lines.join('\n');
   }
 
   // 欠損・型違いがあっても他の画面が壊れないよう念のため補正する
