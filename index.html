@@ -29,6 +29,8 @@
     color: var(--color-text);
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
     -webkit-text-size-adjust: 100%;
+    /* 押した瞬間に出るネイティブのハイライトを、灰色ではなくブランド色にする */
+    -webkit-tap-highlight-color: rgba(224, 138, 79, 0.20);
   }
   #app {
     max-width: 480px;
@@ -123,6 +125,76 @@
     color: #c0554d;
     border: 1px solid #c0554d;
     margin-top: 10px;
+  }
+
+  /* ==========================================================
+     押した感（タップフィードバック）
+     画面が変わらない操作でも「押せた」ことが必ず伝わるようにする
+     ========================================================== */
+
+  /* 枠線ボタンは .btn:active の濃い背景が効いて文字が読めなくなるため打ち消す */
+  .btn.btn-outline:active {
+    background: #f7e7d6;
+    border-color: var(--color-primary-dark);
+    color: var(--color-primary-dark);
+  }
+  .btn.btn-danger:active {
+    background: #f9e5e3;
+    border-color: #a8443d;
+    color: #a8443d;
+  }
+  /* 押せないボタンは沈まない（押せたと誤解させない） */
+  .btn:disabled:active {
+    transform: none;
+    background: #d8c9b8;
+  }
+
+  /* わずかに沈み込ませる */
+  .btn:active,
+  .btn-small:active,
+  .list-btn:active,
+  .count-btn:active,
+  .segmented-btn:active,
+  .star-btn:active,
+  .staple-open-link:active,
+  .library-row:active,
+  .today-menu-card:active,
+  .calendar-clickable:active {
+    transform: scale(0.97);
+  }
+
+  .btn-small:active {
+    background: #f7e7d6;
+    border-color: var(--color-primary-dark);
+  }
+  .list-btn:active { background: var(--color-border); }
+  .tag-chip:active { background: #f7e7d6; border-color: var(--color-primary); }
+  .tag-chip.selected:active { background: var(--color-primary-dark); }
+  .count-btn:active { background: #f7e7d6; border-color: var(--color-primary); }
+  .count-btn.selected:active { background: var(--color-primary-dark); }
+  .segmented-btn:active { background: #f7e7d6; }
+  .segmented-btn.active:active { background: var(--color-primary-dark); }
+  .tab-bar-btn:active { background: #f4e8db; }
+  .star-btn:active { color: var(--color-primary-dark); }
+  .back-link:active { opacity: 0.5; }
+  .library-row:active,
+  .today-menu-card:active,
+  .staple-pick-row:active,
+  .shopping-item:active { background: #fbf1e2; }
+  .calendar-clickable:active { background: #f7e7d6; }
+  .staple-open-link:active {
+    background: #f7e7d6;
+    border-color: var(--color-primary-dark);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn, .btn-small, .list-btn, .tag-chip, .count-btn, .segmented-btn,
+    .tab-bar-btn, .star-btn, .back-link, .icon-btn, .staple-open-link,
+    .library-row, .today-menu-card, .calendar-clickable,
+    .staple-pick-row, .shopping-item {
+      transition: background-color .12s ease, border-color .12s ease,
+                  color .12s ease, opacity .12s ease, transform .08s ease;
+    }
   }
   .back-link {
     display: inline-flex;
@@ -733,15 +805,66 @@
     width: auto;
   }
   .staple-open-link {
-    display: inline-block;
-    font-size: 13px;
+    display: block;
+    text-align: center;
+    font-size: 14px;
     font-weight: 700;
     color: var(--color-primary-dark);
-    text-decoration: underline;
-    padding: 6px 0;
+    text-decoration: none;
+    background: var(--color-surface);
+    border: 1px solid var(--color-primary);
+    border-radius: 10px;
+    padding: 11px 12px;
+    margin: 8px 0;
     cursor: pointer;
   }
   .lunch-field { margin-bottom: 12px; }
+  /* ライブラリ一覧から直接消すための削除ボタン */
+  .library-row-delete {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: #c0554d;
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .library-row-delete:active {
+    background: #f9e5e3;
+    border-color: #c0554d;
+    transform: scale(0.94);
+  }
+  /* 画面が変わらない操作の結果を知らせるトースト */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 84px;
+    transform: translateX(-50%) translateY(10px);
+    max-width: min(360px, calc(100% - 48px));
+    background: rgba(74, 60, 48, 0.95);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: center;
+    padding: 11px 18px;
+    border-radius: 22px;
+    box-shadow: 0 6px 20px rgba(74, 60, 48, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast-error { background: rgba(160, 68, 60, 0.96); }
+  @media (prefers-reduced-motion: no-preference) {
+    .toast { transition: opacity .2s ease, transform .2s ease; }
+  }
 </style>
 </head>
 <body>
@@ -1009,6 +1132,8 @@
     <button class="tab-bar-btn" data-screen="shopping"><span class="tab-icon">🛒</span><span>買い物</span></button>
     <button class="tab-bar-btn" data-screen="settings"><span class="tab-icon">⚙️</span><span>設定</span></button>
   </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </div>
 
 <script>
@@ -1091,6 +1216,23 @@ function formatDateLocal(date) {
 }
 
 // ==========================================================
+// トースト: 画面が変わらない操作の結果を短く知らせる
+// ==========================================================
+let toastTimer = null;
+
+function showToast(message, kind) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = message;
+  el.className = 'toast' + (kind === 'error' ? ' toast-error' : '');
+  // 連続で押されてもアニメーションが確実に出るよう、いったん状態を確定させる
+  void el.offsetWidth;
+  el.classList.add('toast-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('toast-visible'), 2400);
+}
+
+// ==========================================================
 // Phase 2データマイグレーション
 // Phase 1で保存されたadoptedHistoryにはplannedDate/ratingMemoが無いため、
 // 起動時に1回だけ補完する（plannedDate ← adoptedAtの日付部分、ratingMemo ← ''）
@@ -1155,6 +1297,9 @@ function showScreen(name) {
   document.querySelectorAll('.tab-bar-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.screen === name);
   });
+
+  // 画面が切り替わったことが伝わるよう、先頭までスクロールを戻す
+  window.scrollTo(0, 0);
 }
 
 document.querySelectorAll('.tab-bar-btn').forEach((btn) => {
@@ -1348,9 +1493,11 @@ document.getElementById('input-import-file').addEventListener('change', (e) => {
       settings = Object.assign({}, DEFAULT_SETTINGS, StorageService.get('settings', {}));
       initSettingsScreen();
       hint.textContent = '読み込みました。';
+      showToast('データを読み込みました。');
     } catch (err) {
       console.error('インポート失敗:', err);
       hint.textContent = 'うまく読み込めませんでした。ファイルの内容を確認して、もう一度お試しください。';
+      showToast('うまく読み込めませんでした。', 'error');
     }
   };
   reader.readAsText(file);
@@ -1938,10 +2085,18 @@ function normalizeStapleUrl(url) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : 'https://' + trimmed;
 }
 
+// ホーム画面に追加したアプリ（standalone）で動いているかどうか
+function isStandaloneApp() {
+  return window.navigator.standalone === true
+    || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+
 function buildStapleOpenLink(url) {
   const link = document.createElement('a');
   link.href = normalizeStapleUrl(url);
-  link.target = '_blank';
+  // ホーム画面のアプリではtarget="_blank"が無視されてタップしても何も起きないため、
+  // targetを付けずにiOS側のアプリ内ブラウザ（Doneボタン付き）へ開かせる
+  if (!isStandaloneApp()) link.target = '_blank';
   link.rel = 'noopener noreferrer';
   link.className = 'staple-open-link';
   link.textContent = '🔗 レシピのページを開く';
@@ -2100,7 +2255,7 @@ document.getElementById('btn-toggle-staples-picker').addEventListener('click', (
 async function regenerateCard(index, reason, cardEl) {
   cardEl.classList.add('menu-card-loading');
   const hint = cardEl.querySelector('.change-hint');
-  if (hint) hint.textContent = '';
+  if (hint) hint.textContent = '別の案を考えています…';
   try {
     const excludeNames = currentMenus.map((m) => m.name);
     const slot = currentMenuSlots[index] || null;
@@ -2228,8 +2383,10 @@ document.getElementById('btn-date-assign-confirm').addEventListener('click', () 
     history.push({ adoptedAt: now, plannedDate: item.plannedDate, rating: null, ratingMemo: '', menu: item.menu });
   });
   StorageService.set('adoptedHistory', history);
+  const assignedCount = pendingAdoption.length;
   pendingAdoption = [];
   showScreen('shopping');
+  showToast(`${assignedCount}件をカレンダーに登録しました。`);
 });
 
 // ==========================================================
@@ -2444,6 +2601,7 @@ document.getElementById('btn-share-line').addEventListener('click', async () => 
   const text = ShoppingList.buildShareText(currentShoppingList, currentShoppingMenus);
   try {
     await navigator.share({ text });
+    showToast('共有しました。');
   } catch (err) {
     // ユーザーによるキャンセルなどはそのままにしておく
   }
@@ -2455,8 +2613,10 @@ document.getElementById('btn-copy-list').addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(text);
     hint.textContent = 'コピーしました。LINEなどに貼り付けてください。';
+    showToast('買い物リストをコピーしました。');
   } catch (err) {
     hint.textContent = 'コピーに失敗しました。もう一度お試しください。';
+    showToast('コピーできませんでした。', 'error');
   }
 });
 
@@ -2483,7 +2643,7 @@ function renderTodayCard() {
 
     const label = document.createElement('p');
     label.className = 'today-menu-label';
-    label.textContent = '今日の献立';
+    label.textContent = `今日の献立・${formatDateLabelJa(formatDateLocal(new Date()))}`;
     card.appendChild(label);
 
     const name = document.createElement('h2');
@@ -2786,8 +2946,10 @@ function buildDayStaplePickerCard(dateStr) {
       if (result.ok) {
         renderCalendarScreen();
         openDayDetail(dateStr); // 入れた献立が見えるよう詳細を開き直す
+        showToast(`「${staple.name}」を${formatDateLabelJa(dateStr)}に入れました。`);
       } else {
         hint.textContent = result.message;
+        showToast(result.message, 'error');
       }
     });
     row.appendChild(addBtn);
@@ -2948,6 +3110,7 @@ function buildDayDetailCard(dateStr, historyIndex, item) {
     unassignMenu(historyIndex);
     renderCalendarScreen();
     hideDayDetail();
+    showToast(`「${menu.name}」をカレンダーから外しました。`);
   });
   card.appendChild(unassignBtn);
 
@@ -3034,6 +3197,22 @@ function renderLibraryScreen() {
     stars.textContent = entry.rating ? '★'.repeat(entry.rating) + '☆'.repeat(5 - entry.rating) : '未評価';
     row.appendChild(stars);
 
+    // 詳細画面まで進まなくても一覧から消せるようにする
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'library-row-delete';
+    deleteBtn.textContent = '🗑';
+    deleteBtn.setAttribute('aria-label', `${entry.menu.name}を削除`);
+    deleteBtn.addEventListener('click', (event) => {
+      event.stopPropagation(); // 行タップ（詳細を開く）と競合させない
+      const confirmed = confirm(`「${entry.menu.name}」の採用履歴をすべて削除します。カレンダーの記録や評価も一緒に消え、元に戻せません。よろしいですか？`);
+      if (!confirmed) return;
+      deleteRecipeFromHistory(entry.menu.name);
+      renderLibraryScreen();
+      showToast(`「${entry.menu.name}」を削除しました。`);
+    });
+    row.appendChild(deleteBtn);
+
     listEl.appendChild(row);
   });
 }
@@ -3111,6 +3290,33 @@ function deleteRecipeFromHistory(name) {
   const history = StorageService.get('adoptedHistory', []);
   const filtered = history.filter((item) => item.menu.name !== name);
   StorageService.set('adoptedHistory', filtered);
+}
+
+// 定番メニューがカレンダー（adoptedHistory）に何件入っているかを数える。
+// 定番メニュー本体（staples）とカレンダーの予定は別データのため、削除時に確認が必要になる
+function countStaplePlans(staple) {
+  const name = (staple.name || '').trim();
+  if (!name) return 0;
+  return StorageService.get('adoptedHistory', [])
+    .filter((item) => item.menu.isStaple && item.menu.name === name).length;
+}
+
+// 定番メニューを削除する。alsoDeletePlansがtrueならカレンダーに入れた分もまとめて消す
+function deleteStapleAndPlans(index, alsoDeletePlans) {
+  const staples = getStaples();
+  const target = staples[index];
+  if (!target) return;
+  const name = (target.name || '').trim();
+
+  staples.splice(index, 1);
+  saveStaplesList(staples);
+
+  if (alsoDeletePlans && name) {
+    const history = StorageService.get('adoptedHistory', []);
+    StorageService.set('adoptedHistory',
+      history.filter((item) => !(item.menu.isStaple && item.menu.name === name)));
+  }
+  refreshActiveScreen();
 }
 
 function openLibraryDetail(name) {
@@ -3225,9 +3431,26 @@ function renderStaplesList() {
     deleteBtn.className = 'list-btn list-btn-delete';
     deleteBtn.textContent = '×';
     deleteBtn.addEventListener('click', () => {
-      staples.splice(index, 1);
-      saveStaplesList(staples);
+      const name = (staple.name || '').trim() || 'この定番メニュー';
+      if (!confirm(`「${name}」を定番メニューから削除します。よろしいですか？`)) return;
+
+      // カレンダーに入れた分は別データなので、残すか消すかを必ず選んでもらう
+      const plannedCount = countStaplePlans(staple);
+      let alsoDeletePlans = false;
+      if (plannedCount > 0) {
+        alsoDeletePlans = confirm(
+          `「${name}」はカレンダーに${plannedCount}件入っています。\n`
+          + `この${plannedCount}件も一緒に削除しますか？\n\n`
+          + 'OK: カレンダーからも削除する（評価も消えます）\n'
+          + 'キャンセル: カレンダーには残す'
+        );
+      }
+
+      deleteStapleAndPlans(index, alsoDeletePlans);
       renderStaplesList();
+      showToast(alsoDeletePlans
+        ? `「${name}」とカレンダーの${plannedCount}件を削除しました。`
+        : `「${name}」を定番メニューから削除しました。`);
     });
     top.appendChild(deleteBtn);
     card.appendChild(top);
@@ -3283,7 +3506,8 @@ function renderStaplesList() {
 
     assignBtn.addEventListener('click', () => {
       const result = assignStapleToDate(staple, dateInput.value);
-      assignHint.textContent = result.message;
+      assignHint.textContent = result.ok ? '' : result.message;
+      showToast(result.message, result.ok ? '' : 'error');
     });
 
     listEl.appendChild(card);
@@ -3305,6 +3529,7 @@ document.getElementById('btn-add-staple').addEventListener('click', () => {
   urlInput.value = '';
   memoInput.value = '';
   renderStaplesList();
+  showToast(`「${name}」を定番メニューに追加しました。`);
 });
 
 function resetLibraryMode() {
@@ -3324,6 +3549,57 @@ document.querySelectorAll('#library-mode-toggle .segmented-btn').forEach((btn) =
     if (mode === 'staples') renderStaplesList();
   });
 });
+
+// ==========================================================
+// 表示中の画面を最新データで描き直す
+// iOSのホーム画面アプリはバックグラウンドから復帰してもスクリプトを再実行しないため、
+// 復帰時・日付またぎ・削除操作の直後に明示的に描き直す
+// ==========================================================
+let lastRenderedDateStr = formatDateLocal(new Date());
+
+function getActiveScreenName() {
+  return SCREENS.find((name) => document.getElementById('screen-' + name).classList.contains('active')) || 'home';
+}
+
+// 詳細画面を開いている最中は、入力中のメモや評価が消えるため描き直さない
+function isDetailOpen() {
+  return document.getElementById('calendar-day-detail').style.display === 'block'
+    || document.getElementById('library-detail').style.display === 'block';
+}
+
+function refreshActiveScreen() {
+  const todayStr = formatDateLocal(new Date());
+  const dateChanged = todayStr !== lastRenderedDateStr;
+  lastRenderedDateStr = todayStr;
+  if (isDetailOpen()) return;
+
+  const name = getActiveScreenName();
+  if (name === 'home') {
+    renderTodayCard();
+    // 未評価の催促カードは「1日1回だけ」の作りなので、毎回呼ぶと表示済みのカードを
+    // 消してしまう。日付が変わったときだけ出し直す
+    if (dateChanged) renderRatingPromptCard();
+  } else if (name === 'calendar') {
+    renderCalendarScreen();
+  } else if (name === 'library') {
+    // 定番メニューの編集中は入力が消えるため、作った料理の一覧だけ描き直す
+    if (document.getElementById('library-staples-view').style.display !== 'block') {
+      renderLibraryScreen();
+    }
+  } else if (name === 'shopping') {
+    renderShoppingScreen();
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshActiveScreen();
+});
+window.addEventListener('pageshow', () => refreshActiveScreen());
+
+// アプリを開いたまま日付が変わっても「今日の献立」がずれないよう、1分ごとに確認する
+setInterval(() => {
+  if (formatDateLocal(new Date()) !== lastRenderedDateStr) refreshActiveScreen();
+}, 60000);
 
 // ==========================================================
 // 初期画面の確定(タブバーのアクティブ状態を含めてホームで初期化)
