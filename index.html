@@ -641,6 +641,18 @@
   .calendar-cell:has(.calendar-lunch-label) .calendar-menu-label {
     -webkit-line-clamp: 4;
   }
+  /* メモも入っている日は、さらに1行ずつ譲り合ってマス目に収める */
+  .calendar-cell:has(.calendar-note-label) .calendar-menu-label {
+    -webkit-line-clamp: 4;
+  }
+  .calendar-cell:has(.calendar-note-label):has(.calendar-lunch-label) .calendar-menu-label {
+    -webkit-line-clamp: 3;
+  }
+  /* メモ単独の日は4行使えるが、献立やお昼と並ぶときは1行に抑える */
+  .calendar-cell:has(.calendar-menu-label) .calendar-note-label,
+  .calendar-cell:has(.calendar-lunch-label) .calendar-note-label {
+    -webkit-line-clamp: 1;
+  }
   /* お昼ごはんは夕食と見分けやすいよう別色にする */
   .calendar-lunch-label {
     color: #6f8f4f;
@@ -3021,8 +3033,8 @@ function renderCalendarScreen() {
       cell.appendChild(label);
     }
 
-    // メモ（外食の予定など）。献立もお昼も無い日だけ表示して情報量を抑える
-    if (notes[dateStr] && !lunches[dateStr] && !(entries && entries.length > 0)) {
+    // メモ（外食の予定など）。献立が入っている日でも小さく表示する
+    if (notes[dateStr]) {
       const noteLabel = document.createElement('div');
       noteLabel.className = 'calendar-note-label';
       noteLabel.textContent = notes[dateStr];
