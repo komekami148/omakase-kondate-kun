@@ -473,6 +473,8 @@
     display: flex;
     flex-direction: column;
   }
+  .shopping-item-checked .shopping-item-text { opacity: 0.45; text-decoration: line-through; }
+  .shopping-range-reset { margin-top: 8px; padding: 8px 14px; }
   .shopping-item-sub {
     font-size: 11px;
     color: var(--color-text-sub);
@@ -873,6 +875,21 @@
     cursor: pointer;
   }
   .lunch-field { margin-bottom: 12px; }
+  /* 定番の材料の欄：材料名を広く、量・単位は短く */
+  .staple-ingredients { margin: 12px 0; }
+  .ing-edit-row { display: flex; gap: 4px; align-items: center; margin-bottom: 6px; }
+  .ing-edit-row input, .ing-edit-row select { padding: 8px 6px; font-size: 14px; }
+  .ing-edit-row .ing-name { flex: 1; min-width: 0; }
+  .ing-edit-row .ing-amount { width: 52px; flex: none; }
+  .ing-edit-row .ing-unit { width: 52px; flex: none; }
+  .ing-edit-row select {
+    flex: none;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: inherit;
+  }
   /* ライブラリ一覧から直接消すための削除ボタン */
   .library-row-delete {
     border: 1px solid var(--color-border);
@@ -932,12 +949,14 @@
     <section class="screen active" id="screen-home">
       <div id="today-menu-card-container"></div>
       <div id="rating-prompt-card-container"></div>
+      <div id="backup-notice-container"></div>
 
       <p class="home-greeting">今週も献立づくり、おつかれさまです。焦らなくて大丈夫です、無理のない範囲で選んでくださいね。</p>
 
       <div class="card">
         <h2>今週は何回分、作りますか？</h2>
         <div class="count-selector" id="count-selector"></div>
+        <p class="hint" id="free-nights-hint"></p>
       </div>
 
       <div class="card">
@@ -953,7 +972,7 @@
 
       <div class="card">
         <h2>使いたい食材（任意）</h2>
-        <p class="hint">食材ごとに「何食分に使うか」を指定できます。指定しなかった品には使いません。</p>
+        <p class="hint">食材ごとに「何食分に使うか」を指定できます。指定しなかった品では主役にしません（少し添えることはあります）。</p>
         <ul class="alloc-list" id="list-ingredient-allocation"></ul>
         <div class="add-row">
           <input type="text" id="input-add-ingredient" list="ingredient-suggestions" placeholder="例: 茄子">
@@ -993,6 +1012,11 @@
         <div id="menu-cards"></div>
         <div class="results-footer">
           <button class="btn btn-outline" id="btn-regenerate-all">全部作り直す</button>
+          <button class="btn btn-outline" id="btn-toggle-repeat-picker">★4以上の料理から選ぶ</button>
+          <div id="repeat-picker-panel" class="card" style="display:none;">
+            <p class="hint">前に作って★4以上を付けた料理です。選ぶと、そのときのレシピのまま一緒に採用できます。</p>
+            <div id="repeat-picker-list"></div>
+          </div>
           <button class="btn btn-outline" id="btn-toggle-staples-picker">定番メニューから選ぶ</button>
           <div id="staples-picker-panel" class="card" style="display:none;">
             <p class="hint">迷ったときは、登録しておいた定番メニューから選んで一緒に採用できます。</p>
@@ -1009,7 +1033,7 @@
 
       <div class="card">
         <h2>いつ作るか、決めましょう</h2>
-        <p>今日から順に仮の日付を入れています。外食日などはタップして変更してください。</p>
+        <p>空いている夜に、今日から順に仮の日付を入れています。変えたい日はタップして変更してください。</p>
       </div>
 
       <div id="date-assign-list"></div>
@@ -1020,8 +1044,19 @@
 
     <!-- 買い物リスト画面 -->
     <section class="screen" id="screen-shopping">
+      <div class="card">
+        <h2>買う範囲</h2>
+        <div class="staple-date-row">
+          <input type="date" id="shopping-from" aria-label="いつから">
+          <span>〜</span>
+          <input type="date" id="shopping-to" aria-label="いつまで">
+        </div>
+        <button type="button" class="btn-small shopping-range-reset" id="btn-shopping-range-week">今日から1週間にする</button>
+        <p class="hint">この間にカレンダーに入っている献立の材料を出します。あとから1品足しても、ここに加わります。</p>
+      </div>
+
       <div class="card" id="shopping-empty" style="display:none;">
-        <p>まだ買い物リストがありません。まずはホームから献立を採用してください。</p>
+        <p>この期間にはまだ献立が入っていません。ホームで献立を考えてもらうか、カレンダーに定番メニューを入れてください。</p>
       </div>
 
       <div id="shopping-content">
@@ -1111,6 +1146,8 @@
         <button class="btn btn-outline" id="btn-export">エクスポート（JSON書き出し）</button>
         <button class="btn btn-outline" id="btn-import-trigger">インポート（JSON読み込み）</button>
         <input type="file" id="input-import-file" accept="application/json" style="display:none">
+        <p class="hint" id="backup-last-info"></p>
+        <p class="hint">書き出したファイルにはAPIキーは入りません。読み込んだあと、キーが空なら入れ直してください。</p>
         <p class="hint" id="import-hint"></p>
       </div>
     </section>
@@ -1319,9 +1356,20 @@ function showToast(message, kind) {
 }
 
 // ==========================================================
+// 保存しているキーの一覧（書き出し・読み込みは必ずこの一覧を使う。キーを足したらここに足す）
+// ==========================================================
+const BACKUP_KEYS = ['settings', 'adoptedHistory', 'lastConditions', 'staples', 'calendarNotes', 'lunchNotes', 'shoppingRange', 'shoppingChecked'];
+
+function newId(prefix) {
+  return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ==========================================================
 // Phase 2データマイグレーション
-// Phase 1で保存されたadoptedHistoryにはplannedDate/ratingMemoが無いため、
-// 起動時に1回だけ補完する（plannedDate ← adoptedAtの日付部分、ratingMemo ← ''）
+// Phase 1で保存されたadoptedHistoryにはplannedDate/ratingMemoが無いため補完する
+// （plannedDate ← adoptedAtの日付部分、ratingMemo ← ''）。
+// 「割り当てを解除」した献立は plannedDate が null なので、undefined のときだけ補う
+// （以前は null も補っていたため、解除した献立が開き直すたびに採用日へ戻っていた）
 // ==========================================================
 (function migrateAdoptedHistory() {
   const history = StorageService.get('adoptedHistory', []);
@@ -1329,7 +1377,7 @@ function showToast(message, kind) {
   let changed = false;
   const migrated = history.map((item) => {
     const next = { ...item };
-    if (!next.plannedDate) {
+    if (next.plannedDate === undefined) {
       next.plannedDate = formatDateLocal(new Date(item.adoptedAt));
       changed = true;
     }
@@ -1342,6 +1390,31 @@ function showToast(message, kind) {
   if (changed) {
     StorageService.set('adoptedHistory', migrated);
   }
+})();
+
+// 定番メニューに番号（id）を振り、カレンダーに入れた分とは番号でつなぐ。
+// 以前は料理名でつないでいたため、定番の名前を直すと作った回数や★が切れていた
+(function migrateStapleIds() {
+  const staples = StorageService.get('staples', []);
+  if (staples.length === 0) return;
+  const history = StorageService.get('adoptedHistory', []);
+  let stapleChanged = false;
+  let historyChanged = false;
+  staples.forEach((staple) => {
+    if (!staple.id) {
+      staple.id = newId('st_');
+      stapleChanged = true;
+    }
+    const name = (staple.name || '').trim();
+    history.forEach((item) => {
+      if (item.menu && item.menu.isStaple && !item.menu.stapleId && item.menu.name === name) {
+        item.menu.stapleId = staple.id;
+        historyChanged = true;
+      }
+    });
+  });
+  if (stapleChanged) StorageService.set('staples', staples);
+  if (historyChanged) StorageService.set('adoptedHistory', history);
 })();
 
 // ==========================================================
@@ -1357,7 +1430,12 @@ function showScreen(name) {
   });
   // 設定でタンパク質マスタ・タグマスタが変更されている場合があるため、ホーム表示のたびに再描画する
   if (name === 'home' && typeof renderConditionsScreen === 'function') {
+    applyFreeNightsCount();
     renderConditionsScreen();
+    renderBackupNotice();
+  }
+  if (name === 'settings' && typeof renderBackupInfo === 'function') {
+    renderBackupInfo();
   }
   if (name === 'home' && typeof renderTodayCard === 'function') {
     renderTodayCard();
@@ -1540,14 +1618,13 @@ wireAddRow('input-add-pantry', 'btn-add-pantry', settings.pantryStaples, 'list-p
 
 // --- データのエクスポート／インポート ---
 document.getElementById('btn-export').addEventListener('click', () => {
-  const data = {
-    settings: StorageService.get('settings', null),
-    adoptedHistory: StorageService.get('adoptedHistory', []),
-    lastConditions: StorageService.get('lastConditions', null),
-    staples: StorageService.get('staples', []),
-    calendarNotes: StorageService.get('calendarNotes', {}),
-    lunchNotes: StorageService.get('lunchNotes', {})
-  };
+  const data = {};
+  BACKUP_KEYS.forEach((key) => {
+    const value = StorageService.get(key, null);
+    if (value !== null) data[key] = value;
+  });
+  // APIキーは書き出さない（ファイルを人に渡したときに使われないように）
+  if (data.settings) data.settings = Object.assign({}, data.settings, { apiKey: '' });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1556,8 +1633,29 @@ document.getElementById('btn-export').addEventListener('click', () => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // iOSでは直後に解放すると保存が始まらないことがあるため、少し待ってから解放する
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  StorageService.set('lastBackupAt', new Date().toISOString());
+  renderBackupInfo();
 });
+
+// 最後に書き出した日（設定画面に表示し、30日を過ぎたらホームに小さく知らせる）
+function getBackupAgeDays() {
+  const last = StorageService.get('lastBackupAt', null);
+  if (!last) return null;
+  return Math.floor((Date.now() - new Date(last).getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function renderBackupInfo() {
+  const el = document.getElementById('backup-last-info');
+  const last = StorageService.get('lastBackupAt', null);
+  if (!last) {
+    el.textContent = '最後に書き出した日: まだ書き出していません';
+    return;
+  }
+  const days = getBackupAgeDays();
+  el.textContent = `最後に書き出した日: ${formatDateLabelJa(formatDateLocal(new Date(last)))}（${days === 0 ? '今日' : days + '日前'}）`;
+}
 
 document.getElementById('btn-import-trigger').addEventListener('click', () => {
   document.getElementById('input-import-file').click();
@@ -1570,16 +1668,20 @@ document.getElementById('input-import-file').addEventListener('change', (e) => {
     const hint = document.getElementById('import-hint');
     try {
       const data = JSON.parse(reader.result);
-      if (data.settings) StorageService.set('settings', data.settings);
-      if (data.adoptedHistory) StorageService.set('adoptedHistory', data.adoptedHistory);
-      if (data.lastConditions) StorageService.set('lastConditions', data.lastConditions);
-      if (data.staples) StorageService.set('staples', data.staples);
-      if (data.calendarNotes) StorageService.set('calendarNotes', data.calendarNotes);
-      if (data.lunchNotes) StorageService.set('lunchNotes', data.lunchNotes);
-      settings = Object.assign({}, DEFAULT_SETTINGS, StorageService.get('settings', {}));
-      initSettingsScreen();
-      hint.textContent = '読み込みました。';
-      showToast('データを読み込みました。');
+      if (!confirm('今このスマホに入っているデータは、読み込むファイルの内容で上書きされます。よろしいですか？')) return;
+      BACKUP_KEYS.forEach((key) => {
+        if (data[key] === undefined) return;
+        if (key === 'settings') {
+          // バックアップにはAPIキーが入っていないので、今のキーを残す
+          const currentKey = settings.apiKey || '';
+          StorageService.set('settings', Object.assign({}, data.settings, { apiKey: data.settings.apiKey || currentKey }));
+        } else {
+          StorageService.set(key, data[key]);
+        }
+      });
+      hint.textContent = '読み込みました。画面を開き直します…';
+      // 画面やメモリに古い値が残らないよう、全部を読み直す
+      setTimeout(() => location.reload(), 600);
     } catch (err) {
       console.error('インポート失敗:', err);
       hint.textContent = 'うまく読み込めませんでした。ファイルの内容を確認して、もう一度お試しください。';
@@ -1710,7 +1812,7 @@ function appendAllocationRow(ul, name, isOmakase) {
 function renderAllocationList() {
   const ul = document.getElementById('list-allocation');
   ul.innerHTML = '';
-  settings.proteinMaster.forEach((name) => appendAllocationRow(ul, name, false));
+  getProteinMaster().forEach((name) => appendAllocationRow(ul, name, false));
 
   const divider = document.createElement('li');
   divider.className = 'alloc-divider';
@@ -1722,7 +1824,7 @@ function renderAllocationList() {
 function renderTagGrid() {
   const container = document.getElementById('tag-grid');
   container.innerHTML = '';
-  settings.tagMaster.forEach((tag) => {
+  getTagMaster().forEach((tag) => {
     const chip = document.createElement('button');
     chip.type = 'button';
     const selected = conditions.selectedTags.includes(tag);
@@ -1848,8 +1950,111 @@ function renderAllocationValidation() {
   document.getElementById('btn-generate-menu').disabled = !ok;
 }
 
+// 設定で消した・名前を変えたタンパク質とタグが、見えないまま注文に残らないようにする
+function pruneConditions() {
+  const proteins = new Set(getProteinMaster());
+  let changed = false;
+  Object.keys(conditions.proteinAllocation).forEach((name) => {
+    if (name !== OMAKASE_LABEL && !proteins.has(name)) {
+      delete conditions.proteinAllocation[name];
+      changed = true;
+    }
+  });
+  const tags = new Set(getTagMaster());
+  const keptTags = conditions.selectedTags.filter((tag) => tags.has(tag));
+  if (keptTags.length !== conditions.selectedTags.length) {
+    conditions.selectedTags = keptTags;
+    changed = true;
+  }
+  if (changed) saveConditions();
+}
+
+function getProteinMaster() {
+  return settings.proteinMaster.map((name) => (name || '').trim()).filter(Boolean);
+}
+function getTagMaster() {
+  return settings.tagMaster.map((name) => (name || '').trim()).filter(Boolean);
+}
+
+// ==========================================================
+// 空いている夜（C3）：この先7日のうち、献立が入っていない・外食などのメモが無い夜
+// ==========================================================
+const OUT_NIGHT_WORDS = ['外食', '旅行', '実家', '帰省', 'お出かけ'];
+
+function isOutNight(dateStr, notes) {
+  const note = notes[dateStr] || '';
+  return OUT_NIGHT_WORDS.some((word) => note.includes(word));
+}
+
+function getFreeNights(days) {
+  const planned = getExistingPlannedDates();
+  const notes = getCalendarNotes();
+  const result = [];
+  const cursor = new Date();
+  for (let i = 0; i < days; i++) {
+    const ds = formatDateLocal(cursor);
+    if (!planned.has(ds) && !isOutNight(ds, notes)) result.push(ds);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
+}
+
+// 1日1回、空いている夜の数を「何回分」に入れる。割り当ての合計がずれた分は「おまかせ」で埋める
+function applyFreeNightsCount() {
+  const todayStr = formatDateLocal(new Date());
+  if (conditions.autoCountDate === todayStr) return;
+  conditions.autoCountDate = todayStr;
+  const free = getFreeNights(7);
+  if (free.length > 0) {
+    conditions.count = free.length;
+    const diff = conditions.count - getAllocationSum();
+    const omakase = conditions.proteinAllocation[OMAKASE_LABEL] || 0;
+    if (diff > 0) conditions.proteinAllocation[OMAKASE_LABEL] = omakase + diff;
+    else if (diff < 0) conditions.proteinAllocation[OMAKASE_LABEL] = Math.max(0, omakase + diff);
+  }
+  saveConditions();
+}
+
+function renderFreeNightsHint() {
+  const free = getFreeNights(7);
+  const hint = document.getElementById('free-nights-hint');
+  if (free.length === 0) {
+    hint.textContent = 'この先7日は、献立か外食などの予定で埋まっています。';
+    return;
+  }
+  const labels = free.map((ds) => {
+    const d = new Date(ds + 'T00:00:00');
+    return `${d.getMonth() + 1}/${d.getDate()}（${['日', '月', '火', '水', '木', '金', '土'][d.getDay()]}）`;
+  });
+  hint.textContent = `この先7日で空いている夜は${free.length}日です：${labels.join('・')}。献立が入っている日と、メモに「${OUT_NIGHT_WORDS.join('」「')}」がある日は除いています。`;
+}
+
+// 最後にバックアップを書き出してから30日を過ぎたら、ホームに小さく知らせる（E3）
+function renderBackupNotice() {
+  const container = document.getElementById('backup-notice-container');
+  container.innerHTML = '';
+  const days = getBackupAgeDays();
+  if (days !== null && days < 30) return;
+  const card = document.createElement('div');
+  card.className = 'card rating-prompt-card';
+  const text = document.createElement('p');
+  text.textContent = days === null
+    ? 'バックアップをまだ書き出していません。設定の「データのバックアップ」から書き出しておくと安心です。'
+    : `最後にバックアップを書き出してから${days}日たちました。設定の「データのバックアップ」から書き出しておくと安心です。`;
+  card.appendChild(text);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-small';
+  btn.textContent = '設定を開く';
+  btn.addEventListener('click', () => showScreen('settings'));
+  card.appendChild(btn);
+  container.appendChild(card);
+}
+
 function renderConditionsScreen() {
+  pruneConditions();
   renderCountSelector();
+  renderFreeNightsHint();
   renderAllocationList();
   renderTagGrid();
   renderIngredientAllocation();
@@ -1939,6 +2144,56 @@ const GeminiService = (() => {
     return history.filter((item) => new Date(item.adoptedAt).getTime() >= cutoffMs).map((item) => item.menu.name);
   }
 
+  // ★4以上=この家の好みの傾向（一言メモつき）、★2以下=避ける料理。
+  // 同じ料理に何度か評価があるときは、後から付いた評価を優先する。「作らなかった」は数えない
+  function getRatingInsights() {
+    const history = StorageService.get('adoptedHistory', []);
+    const likedMap = new Map();
+    const avoidSet = new Set();
+    history.forEach((item) => {
+      const name = item.menu && item.menu.name;
+      if (!name || item.notMade || typeof item.rating !== 'number') return;
+      if (item.rating >= 4) {
+        likedMap.set(name, item.ratingMemo || '');
+        avoidSet.delete(name);
+      } else if (item.rating <= 2) {
+        avoidSet.add(name);
+        likedMap.delete(name);
+      }
+    });
+    // 指示が長くなりすぎないよう、好みの傾向は直近15件まで
+    const likedLines = [...likedMap.entries()].slice(-15).map(([name, memo]) => (memo ? `${name}（${memo}）` : name));
+    return { likedLines, avoidNames: [...avoidSet] };
+  }
+
+  function buildLikedLines(insights) {
+    if (insights.likedLines.length === 0) return [];
+    return [
+      '',
+      '【この家庭の好みの傾向（過去に★4以上だった料理より）】',
+      insights.likedLines.join('、'),
+      'これらの味付け・食材・調理法の傾向を参考にしつつ、同じ料理そのものは提案しないでください。'
+    ];
+  }
+
+  // その週（今日から7日）にすでに入っている料理とお昼。新しい提案と被らないように伝える（C3）
+  function getThisWeekLines() {
+    const today = formatDateLocal(new Date());
+    const end = new Date();
+    end.setDate(end.getDate() + 6);
+    const endStr = formatDateLocal(end);
+    const dinners = StorageService.get('adoptedHistory', [])
+      .filter((item) => item.plannedDate && item.plannedDate >= today && item.plannedDate <= endStr)
+      .map((item) => item.menu.name);
+    const lunches = Object.entries(StorageService.get('lunchNotes', {}))
+      .filter(([date]) => date >= today && date <= endStr)
+      .map(([, text]) => text);
+    const lines = [];
+    if (dinners.length > 0) lines.push(`・この先7日にすでに入っている夕食（被らないようにしてください）: ${dinners.join('、')}`);
+    if (lunches.length > 0) lines.push(`・この先7日のお昼ごはん（似た料理にならないようにしてください）: ${lunches.join('、')}`);
+    return lines;
+  }
+
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -2009,7 +2264,8 @@ const GeminiService = (() => {
 
   function buildPrompt(currentConditions, appSettings, options) {
     const opts = options || {};
-    const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...(opts.excludeNames || [])])];
+    const insights = getRatingInsights();
+    const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...insights.avoidNames, ...(opts.excludeNames || [])])];
     const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
 
     let prompt = [
@@ -2022,7 +2278,9 @@ const GeminiService = (() => {
       buildDishInstruction(opts.slot),
       ...buildIngredientInstruction(opts.ingredient || null, opts.requestedIngredients || []),
       ...buildConditionLines(currentConditions),
-      `・避けてほしい料理（直近14日に採用済み、または今回すでに提案済みのもの）: ${avoidText}`
+      `・避けてほしい料理（直近14日に採用済み、過去に低評価だった、または今回すでに提案済みのもの）: ${avoidText}`,
+      ...getThisWeekLines(),
+      ...buildLikedLines(insights)
     ].join('\n');
 
     if (opts.changeReason) {
@@ -2033,7 +2291,8 @@ const GeminiService = (() => {
   }
 
   function buildBatchPrompt(currentConditions, appSettings, slots, ingredientSlots) {
-    const avoidNames = getRecentAdoptedNames(14);
+    const insights = getRatingInsights();
+    const avoidNames = [...new Set([...getRecentAdoptedNames(14), ...insights.avoidNames])];
     const avoidText = avoidNames.length > 0 ? avoidNames.join('、') : 'なし';
 
     return [
@@ -2045,8 +2304,10 @@ const GeminiService = (() => {
       '【今回の条件】',
       buildBatchDishInstruction(slots, ingredientSlots),
       ...buildConditionLines(currentConditions),
-      `・避けてほしい料理（直近14日に採用済み）: ${avoidText}`,
-      '・同じ食材やレシピの使い回しを避け、品目ごとに違うレシピにしてください。'
+      `・避けてほしい料理（直近14日に採用済み、または過去に低評価だった）: ${avoidText}`,
+      ...getThisWeekLines(),
+      '・同じ食材やレシピの使い回しを避け、品目ごとに違うレシピにしてください。',
+      ...buildLikedLines(insights)
     ].join('\n');
   }
 
@@ -2070,12 +2331,41 @@ const GeminiService = (() => {
     };
   }
 
-  // AIの自己申告(protein)だけでなく、実際のingredientsにも要求したタンパク質が含まれているかで判定する
+  // タンパク質の言い換え。AIが「合いびき肉」「卵」のように書いても同じものとして扱う
+  const PROTEIN_ALIASES = {
+    '鶏むね': ['鶏胸', 'むね肉', '胸肉', 'とりむね'],
+    '鶏もも': ['鶏腿', 'もも肉', 'とりもも'],
+    '豚こま': ['豚小間', '豚こま切れ', '豚切り落とし', '豚切落し', '豚肉こま'],
+    '豚バラ': ['豚ばら', 'ばら肉', 'バラ肉'],
+    'ひき肉（合いびき）': ['合いびき', '合挽', '合い挽', 'あいびき'],
+    'ひき肉（鶏）': ['鶏ひき', '鶏挽', '鶏ミンチ', 'とりひき'],
+    'たまご': ['卵', '玉子'],
+    '豆腐': ['とうふ'],
+    '白身魚': ['白身', 'たら', '鱈', 'たい', '鯛', 'かじき', 'ほっけ', 'さわら', '鰆'],
+    '鮭': ['さけ', 'しゃけ', 'サーモン'],
+    '牛こま': ['牛小間', '牛こま切れ', '牛切り落とし', '牛切落し']
+  };
+
+  // 比べやすい形にそろえる（全角半角・カタカナとひらがな・空白とかっこ）
+  function normalizeFoodName(text) {
+    return (text || '').normalize('NFKC')
+      .replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
+      .replace(/[\s()（）・]/g, '');
+  }
+
+  // AIの自己申告(protein)だけでなく、実際のingredientsにも要求したタンパク質が含まれているかで判定する。
+  // protein が空のときに「一致」とみなしていた不具合を直した（空のカードがすり抜けていた）
   function proteinMatches(menu, slot) {
     if (!slot || slot === OMAKASE_LABEL) return true;
-    const protein = menu.protein || '';
-    if (protein.includes(slot) || slot.includes(protein)) return true;
-    return (menu.ingredients || []).some((ing) => (ing.name || '').includes(slot));
+    const keys = [slot, ...(PROTEIN_ALIASES[slot] || [])].map(normalizeFoodName).filter(Boolean);
+    const candidates = [menu.protein, ...(menu.ingredients || []).map((ing) => ing.name)]
+      .map(normalizeFoodName).filter(Boolean);
+    return candidates.some((c) => keys.some((k) => c.includes(k) || (c.length >= 2 && k.includes(c))));
+  }
+
+  // 料理として使える中身があるか（名前と材料がある）。空のカードを出さないための検査
+  function isUsableMenu(menu) {
+    return !!menu && !!menu.name && menu.name !== '(名称未設定)' && (menu.ingredients || []).length > 0;
   }
 
   async function callRawGeminiAPI(promptText, schema) {
@@ -2161,10 +2451,12 @@ const GeminiService = (() => {
       if (attempt > 1) await sleep(2000);
       const prompt = buildPrompt(currentConditions, settings, { slot, excludeNames, changeReason, ingredient, requestedIngredients });
       const menu = await callWithRetry(() => callGeminiAPI(prompt));
+      if (!isUsableMenu(menu)) continue; // 中身の無い返事は数えずにやり直す
       lastMenu = menu;
       if (proteinMatches(menu, slot)) return menu;
       console.warn(`タンパク質不一致のため再試行 (${attempt}/${attempts}): 要求=${slot} 実際=${menu.protein}`);
     }
+    if (!lastMenu) return null; // 何度頼んでも中身が無かった
     lastMenu.proteinMismatch = true;
     return lastMenu;
   }
@@ -2176,28 +2468,64 @@ const GeminiService = (() => {
     const prompt = buildBatchPrompt(currentConditions, settings, slots, ingredients);
     let menus = await callWithRetry(() => callGeminiAPIBatch(prompt));
 
-    while (menus.length < slots.length) menus.push(normalizeMenu({}));
     menus = menus.slice(0, slots.length);
+    while (menus.length < slots.length) menus.push(null);
 
-    const usedNames = menus.map((m) => m.name);
+    const usedNames = menus.filter(isUsableMenu).map((m) => m.name);
     for (let i = 0; i < slots.length; i++) {
-      if (!proteinMatches(menus[i], slots[i])) {
+      if (!isUsableMenu(menus[i]) || !proteinMatches(menus[i], slots[i])) {
         await sleep(2000);
         // 作り直す品にも、元々その枠に割り当てられていた食材の指定を引き継ぐ
-        const fixed = await generateOneMatchingSlot(currentConditions, slots[i], usedNames, null, 2, ingredients[i] || null);
+        let fixed = null;
+        try {
+          fixed = await generateOneMatchingSlot(currentConditions, slots[i], usedNames, null, 2, ingredients[i] || null);
+        } catch (err) {
+          console.error('1品の頼み直しに失敗:', err);
+        }
         menus[i] = fixed;
-        usedNames.push(fixed.name);
+        if (fixed) usedNames.push(fixed.name);
       }
     }
 
-    return { greeting: pickRandom(GREETINGS), menus };
+    // 最後まで中身が無かった品は出さない（枠の記録も一緒に詰める）
+    const kept = menus.map((menu, i) => ({ menu, slot: slots[i], ingredient: ingredients[i] || null }))
+      .filter((x) => isUsableMenu(x.menu));
+    return {
+      greeting: pickRandom(GREETINGS),
+      menus: kept.map((x) => x.menu),
+      slots: kept.map((x) => x.slot),
+      ingredientSlots: kept.map((x) => x.ingredient),
+      missing: slots.length - kept.length
+    };
   }
 
   function regenerateOne(currentConditions, excludeNames, reason, singleProtein, ingredient) {
     return generateOneMatchingSlot(currentConditions, singleProtein, excludeNames, reason, null, ingredient);
   }
 
-  return { generateMenus: generateMenusReal, regenerateOne };
+  // 定番メニューの名前から、材料だけを書き出してもらう（C2）
+  const INGREDIENTS_SCHEMA = {
+    type: 'OBJECT',
+    properties: { ingredients: MENU_ITEM_SCHEMA.properties.ingredients },
+    required: ['ingredients']
+  };
+
+  async function suggestIngredients(dishName, memo) {
+    const prompt = [
+      'あなたは家庭料理の献立アドバイザーです。',
+      '',
+      '【家族プロフィール】',
+      settings.familyProfile,
+      '',
+      `「${dishName}」を家族分作るときの材料を、ingredients に書き出してください。`,
+      memo ? `作る人のメモ: ${memo}` : '',
+      '量は数値で amount に、単位は unit に分けてください。category は 野菜／肉魚／その他 のどれかにしてください。'
+    ].filter(Boolean).join('\n');
+    const parsed = await callWithRetry(() => callRawGeminiAPI(prompt, INGREDIENTS_SCHEMA));
+    return normalizeMenu({ name: dishName, ingredients: parsed.ingredients }).ingredients.filter((ing) => ing.name);
+  }
+
+  return { generateMenus: generateMenusReal, regenerateOne, suggestIngredients };
 })();
 
 // ==========================================================
@@ -2212,6 +2540,8 @@ const LOADING_MESSAGES = [
 let currentMenus = [];
 let currentMenuSlots = []; // currentMenusと同じ順序で、各枠に要求したタンパク質を記録
 let currentIngredientSlots = []; // 同じ順序で、各枠に割り当てた「使いたい食材」を記録
+let currentAdopted = new Set(); // 「採用」にチェックした品の番号（カードを描き直しても消えないよう、画面ではなくここで持つ）
+let currentReasons = []; // 各カードの「一言理由」の入力
 
 function setResultsView(state) {
   document.getElementById('results-loading').style.display = state === 'loading' ? 'block' : 'none';
@@ -2242,13 +2572,20 @@ async function runGeneration() {
     const slots = expandProteinSlots(conditions.proteinAllocation, conditions.count + 2);
     const ingredientSlots = expandIngredientSlots(conditions.ingredientAllocation, conditions.count + 2);
     const result = await GeminiService.generateMenus(conditions, slots, ingredientSlots);
+    if (result.menus.length === 0) throw Object.assign(new Error('提案を受け取れませんでした'), { type: 'parse' });
     currentMenus = result.menus;
-    currentMenuSlots = slots;
-    currentIngredientSlots = ingredientSlots;
-    document.getElementById('results-greeting').textContent = result.greeting;
+    currentMenuSlots = result.slots;
+    currentIngredientSlots = result.ingredientSlots;
+    currentAdopted = new Set();
+    currentReasons = [];
+    document.getElementById('results-greeting').textContent = result.missing > 0
+      ? `${result.greeting}（今回は${result.menus.length}品しか考えられませんでした。足りなければ「全部作り直す」をどうぞ）`
+      : result.greeting;
     renderMenuCards();
     renderStaplesPicker();
+    renderRepeatPicker();
     document.getElementById('staples-picker-panel').style.display = 'none';
+    document.getElementById('repeat-picker-panel').style.display = 'none';
     setResultsView('content');
   } catch (err) {
     console.error('献立生成に失敗しました:', err);
@@ -2313,6 +2650,16 @@ function buildStapleBody(menu) {
 
   if (menu.staple_url) {
     wrap.appendChild(buildStapleOpenLink(menu.staple_url));
+  }
+
+  const ingredients = getMenuIngredients(menu);
+  if (ingredients.length > 0) {
+    const ingDetails = document.createElement('details');
+    const ingSummary = document.createElement('summary');
+    ingSummary.textContent = `材料（${ingredients.length}）`;
+    ingDetails.appendChild(ingSummary);
+    ingDetails.appendChild(buildIngredientList(ingredients));
+    wrap.appendChild(ingDetails);
   }
 
   return wrap;
@@ -2380,7 +2727,12 @@ function buildMenuCard(menu, index) {
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
   checkbox.className = 'adopt-checkbox';
-  checkbox.addEventListener('change', updateConfirmButtonLabel);
+  checkbox.checked = currentAdopted.has(index);
+  checkbox.addEventListener('change', () => {
+    if (checkbox.checked) currentAdopted.add(index);
+    else currentAdopted.delete(index);
+    updateConfirmButtonLabel();
+  });
   const checkboxText = document.createElement('span');
   checkboxText.textContent = '採用';
   adoptLabel.appendChild(checkbox);
@@ -2427,6 +2779,8 @@ function buildMenuCard(menu, index) {
   reasonInput.type = 'text';
   reasonInput.className = 'change-reason-input';
   reasonInput.placeholder = '一言理由（任意）例: 豚こまのイメージだった';
+  reasonInput.value = currentReasons[index] || '';
+  reasonInput.addEventListener('input', () => { currentReasons[index] = reasonInput.value; });
   const changeBtn = document.createElement('button');
   changeBtn.type = 'button';
   changeBtn.className = 'btn-small';
@@ -2455,7 +2809,8 @@ function renderMenuCards() {
 function updateConfirmButtonLabel() {
   const menuChecked = document.querySelectorAll('.adopt-checkbox:checked').length;
   const stapleChecked = document.querySelectorAll('.staple-pick-checkbox:checked').length;
-  const total = menuChecked + stapleChecked;
+  const repeatChecked = document.querySelectorAll('.repeat-pick-checkbox:checked').length;
+  const total = menuChecked + stapleChecked + repeatChecked;
   const btn = document.getElementById('btn-confirm-adopt');
   btn.textContent = `採用を確定（${total}件）`;
   btn.disabled = total === 0;
@@ -2491,6 +2846,41 @@ function renderStaplesPicker() {
   });
 }
 
+// ★4以上の料理から選ぶ欄。定番メニューと同じ形で、前に作った料理をそのまま採用できる
+function renderRepeatPicker() {
+  const container = document.getElementById('repeat-picker-list');
+  container.innerHTML = '';
+  const entries = getLibraryEntries()
+    .filter((e) => !e.menu.isStaple && e.rating >= 4)
+    .sort((a, b) => (b.rating - a.rating) || ((b.lastMadeDate || '') > (a.lastMadeDate || '') ? 1 : -1));
+  if (entries.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = 'まだ★4以上の料理がありません。作った料理に★を付けると、ここに出てきます。';
+    container.appendChild(p);
+    return;
+  }
+  entries.forEach((entry) => {
+    const label = document.createElement('label');
+    label.className = 'staple-pick-row';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'repeat-pick-checkbox';
+    checkbox.dataset.name = entry.menu.name;
+    checkbox.addEventListener('change', updateConfirmButtonLabel);
+    const span = document.createElement('span');
+    span.textContent = `${entry.menu.name}　${'★'.repeat(entry.rating)}`;
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    container.appendChild(label);
+  });
+}
+
+document.getElementById('btn-toggle-repeat-picker').addEventListener('click', () => {
+  const panel = document.getElementById('repeat-picker-panel');
+  panel.style.display = panel.style.display === 'none' || !panel.style.display ? 'block' : 'none';
+});
+
 document.getElementById('btn-toggle-staples-picker').addEventListener('click', () => {
   const panel = document.getElementById('staples-picker-panel');
   const hidden = panel.style.display === 'none' || !panel.style.display;
@@ -2508,6 +2898,8 @@ async function regenerateCard(index, reason, cardEl) {
     const newMenu = await GeminiService.regenerateOne(conditions, excludeNames, reason, slot, ingredient);
     if (!newMenu) throw new Error('差し替え候補が見つかりませんでした');
     currentMenus[index] = newMenu;
+    currentAdopted.delete(index); // 差し替えた品は別の料理なので、チェックは外す（ほかの品はそのまま）
+    currentReasons[index] = '';
     renderMenuCards();
   } catch (err) {
     console.error('差し替えに失敗しました:', err);
@@ -2533,6 +2925,12 @@ document.getElementById('btn-confirm-adopt').addEventListener('click', () => {
     const staple = staples[Number(cb.dataset.index)];
     if (staple) adopted.push(staplesToMenu(staple));
   });
+  // ★の高い料理から選んだもの（AIを通さず、前に作ったときのレシピをそのまま使う）
+  const libraryEntries = getLibraryEntries();
+  document.querySelectorAll('.repeat-pick-checkbox:checked').forEach((cb) => {
+    const entry = libraryEntries.find((e) => e.menu.name === cb.dataset.name);
+    if (entry) adopted.push(JSON.parse(JSON.stringify(entry.menu)));
+  });
 
   if (adopted.length === 0) return;
   dateAssignReturnScreen = 'results';
@@ -2553,11 +2951,12 @@ function getExistingPlannedDates() {
 // 今日から順に、既存の予定と重ならない日付を自動で割り当てる
 function computeAutoDates(count) {
   const used = getExistingPlannedDates();
+  const notes = getCalendarNotes();
   const dates = [];
   const cursor = new Date();
   while (dates.length < count) {
     const ds = formatDateLocal(cursor);
-    if (!used.has(ds) && !dates.includes(ds)) dates.push(ds);
+    if (!used.has(ds) && !isOutNight(ds, notes) && !dates.includes(ds)) dates.push(ds);
     cursor.setDate(cursor.getDate() + 1);
   }
   return dates;
@@ -2629,6 +3028,15 @@ document.getElementById('btn-date-assign-confirm').addEventListener('click', () 
     history.push({ adoptedAt: now, plannedDate: item.plannedDate, rating: null, ratingMemo: '', menu: item.menu });
   });
   StorageService.set('adoptedHistory', history);
+  // 採用した日が買う範囲の外なら、範囲を広げて買い物リストに載るようにする
+  const range = getShoppingRange();
+  const dates = pendingAdoption.map((item) => item.plannedDate).sort();
+  const todayStr = formatDateLocal(new Date());
+  const nextRange = {
+    from: dates[0] < range.from && dates[0] >= todayStr ? dates[0] : range.from,
+    to: dates[dates.length - 1] > range.to ? dates[dates.length - 1] : range.to
+  };
+  StorageService.set('shoppingRange', nextRange);
   const assignedCount = pendingAdoption.length;
   pendingAdoption = [];
   showScreen('shopping');
@@ -2716,34 +3124,54 @@ const ShoppingList = (() => {
 let currentShoppingList = { vegetables: [], meatFish: [], other: [], pantry: [] };
 let currentShoppingMenus = [];
 
-// 直近で「採用を確定」した分だけを対象にする（同じadoptedAtを持つ最新バッチ）
-function getLatestBatchInfo() {
-  const history = StorageService.get('adoptedHistory', []);
-  if (history.length === 0) return { batchKey: null, menus: [] };
-  const latestAdoptedAt = history.reduce((max, item) => (item.adoptedAt > max ? item.adoptedAt : max), history[0].adoptedAt);
-  const menus = history.filter((item) => item.adoptedAt === latestAdoptedAt).map((item) => item.menu);
-  return { batchKey: String(latestAdoptedAt), menus };
+// 買い物リストは「日付の範囲」に入っている献立から作る（D）。
+// 以前は「最後に採用を確定した分」だけだったため、定番を1品入れるとリストがその1品に入れ替わっていた。
+// 範囲は保存しておき、終わりの日が過ぎていたら「今日から1週間」に戻す
+function getDefaultShoppingRange() {
+  const from = new Date();
+  const to = new Date();
+  to.setDate(to.getDate() + 6);
+  return { from: formatDateLocal(from), to: formatDateLocal(to) };
 }
 
-// チェック済み商品はバッチ（買い物リストの世代）ごとに保存する。
-// 別のバッチを開いたら古いチェック状態は自動的に破棄し、肥大化を防ぐ
+function getShoppingRange() {
+  const saved = StorageService.get('shoppingRange', null);
+  const todayStr = formatDateLocal(new Date());
+  if (!saved || !saved.from || !saved.to || saved.to < todayStr) {
+    const range = getDefaultShoppingRange();
+    StorageService.set('shoppingRange', range);
+    return range;
+  }
+  return saved;
+}
+
+function getShoppingMenus(range) {
+  return StorageService.get('adoptedHistory', [])
+    .filter((item) => item.plannedDate && item.plannedDate >= range.from && item.plannedDate <= range.to)
+    .sort((a, b) => (a.plannedDate < b.plannedDate ? -1 : 1))
+    .map((item) => Object.assign({}, item.menu, { ingredients: getMenuIngredients(item.menu), plannedDate: item.plannedDate }));
+}
+
+// チェック済み商品は範囲ごとに保存する。範囲が変わったら古いチェックは破棄する
 function getCheckedItemSet(batchKey) {
   const saved = StorageService.get('shoppingChecked', { batchKey: null, items: [] });
   if (saved.batchKey !== batchKey) return new Set();
   return new Set(saved.items);
 }
-function markItemChecked(batchKey, itemKey) {
+function setItemChecked(batchKey, itemKey, checked) {
   const set = getCheckedItemSet(batchKey);
-  set.add(itemKey);
+  if (checked) set.add(itemKey);
+  else set.delete(itemKey);
   StorageService.set('shoppingChecked', { batchKey, items: [...set] });
 }
 
-function buildChecklistItem(labelText, subtitleText, onCheck) {
+function buildChecklistItem(labelText, subtitleText, checked, onToggle) {
   const li = document.createElement('li');
   const label = document.createElement('label');
-  label.className = 'shopping-item';
+  label.className = 'shopping-item' + (checked ? ' shopping-item-checked' : '');
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
+  checkbox.checked = checked;
 
   const textWrap = document.createElement('div');
   textWrap.className = 'shopping-item-text';
@@ -2757,29 +3185,25 @@ function buildChecklistItem(labelText, subtitleText, onCheck) {
     textWrap.appendChild(sub);
   }
 
-  checkbox.addEventListener('change', () => {
-    if (checkbox.checked) onCheck();
-  });
+  checkbox.addEventListener('change', () => onToggle(checkbox.checked));
   label.appendChild(checkbox);
   label.appendChild(textWrap);
   li.appendChild(label);
   return li;
 }
 
-// formatterは { label, subtitle } を返す関数。チェック済みの商品はあらかじめitemsから除外しておくこと
-function renderShoppingSection(listElId, sectionElId, items, formatter, batchKey, keyFn) {
+// formatterは { label, subtitle } を返す関数。
+// チェックした品は消さずに薄く下へ回し、もう一度押すと戻る（A5。押し間違えても戻せるように）
+function renderShoppingSection(listElId, sectionElId, items, formatter, batchKey, keyFn, checkedSet) {
   const ul = document.getElementById(listElId);
   ul.innerHTML = '';
-  items.forEach((item) => {
+  const ordered = [...items.filter((i) => !checkedSet.has(keyFn(i))), ...items.filter((i) => checkedSet.has(keyFn(i)))];
+  ordered.forEach((item) => {
     const { label, subtitle } = formatter(item);
     const itemKey = keyFn(item);
-    const li = buildChecklistItem(label, subtitle, () => {
-      markItemChecked(batchKey, itemKey);
-      li.remove();
-      // コピー・共有ボタンが参照するcurrentShoppingList側の配列（＝items自身）からも取り除く
-      const idx = items.indexOf(item);
-      if (idx !== -1) items.splice(idx, 1);
-      document.getElementById(sectionElId).style.display = ul.children.length ? 'block' : 'none';
+    const li = buildChecklistItem(label, subtitle, checkedSet.has(itemKey), (checked) => {
+      setItemChecked(batchKey, itemKey, checked);
+      renderShoppingScreen();
     });
     ul.appendChild(li);
   });
@@ -2794,7 +3218,11 @@ function updateShareButtonsVisibility() {
 }
 
 function renderShoppingScreen() {
-  const { batchKey, menus } = getLatestBatchInfo();
+  const range = getShoppingRange();
+  document.getElementById('shopping-from').value = range.from;
+  document.getElementById('shopping-to').value = range.to;
+  const batchKey = `${range.from}~${range.to}`;
+  const menus = getShoppingMenus(range);
   const emptyCard = document.getElementById('shopping-empty');
   const content = document.getElementById('shopping-content');
 
@@ -2811,6 +3239,7 @@ function renderShoppingScreen() {
   const pantryKey = (p) => 'pantry|' + p.name;
 
   const rawList = ShoppingList.classify(menus, settings.pantryStaples);
+  // 共有・コピーにはチェックしていない品だけを載せる
   const list = {
     vegetables: rawList.vegetables.filter((i) => !checkedSet.has(itemKey(i))),
     meatFish: rawList.meatFish.filter((i) => !checkedSet.has(itemKey(i))),
@@ -2821,19 +3250,21 @@ function renderShoppingScreen() {
     label: `${i.name} ${ShoppingList.formatAmount(i.amount)}${i.unit}`,
     subtitle: i.sources.join('・')
   });
-  renderShoppingSection('list-shopping-vegetables', 'section-vegetables', list.vegetables, amountFormatter, batchKey, itemKey);
-  renderShoppingSection('list-shopping-meatfish', 'section-meatfish', list.meatFish, amountFormatter, batchKey, itemKey);
-  renderShoppingSection('list-shopping-other', 'section-other', list.other, amountFormatter, batchKey, itemKey);
-  renderShoppingSection('list-shopping-pantry', 'section-pantry', list.pantry, (p) => ({
+  renderShoppingSection('list-shopping-vegetables', 'section-vegetables', rawList.vegetables, amountFormatter, batchKey, itemKey, checkedSet);
+  renderShoppingSection('list-shopping-meatfish', 'section-meatfish', rawList.meatFish, amountFormatter, batchKey, itemKey, checkedSet);
+  renderShoppingSection('list-shopping-other', 'section-other', rawList.other, amountFormatter, batchKey, itemKey, checkedSet);
+  renderShoppingSection('list-shopping-pantry', 'section-pantry', rawList.pantry, (p) => ({
     label: p.name,
     subtitle: p.sources.join('・')
-  }), batchKey, pantryKey);
+  }), batchKey, pantryKey, checkedSet);
 
   const menuUl = document.getElementById('list-shopping-menus');
   menuUl.innerHTML = '';
   menus.forEach((m) => {
     const li = document.createElement('li');
-    li.textContent = m.name;
+    const d = new Date(m.plannedDate + 'T00:00:00');
+    const noIngredients = m.isStaple && m.ingredients.length === 0 ? '（材料未登録）' : '';
+    li.textContent = `${d.getMonth() + 1}/${d.getDate()} ${m.name}${noIngredients}`;
     menuUl.appendChild(li);
   });
 
@@ -2842,6 +3273,21 @@ function renderShoppingScreen() {
   currentShoppingList = list;
   currentShoppingMenus = menus;
 }
+
+// 買う範囲を変えたら作り直す
+function onShoppingRangeChange() {
+  const from = document.getElementById('shopping-from').value;
+  const to = document.getElementById('shopping-to').value;
+  if (!from || !to) return;
+  StorageService.set('shoppingRange', from <= to ? { from, to } : { from: to, to: from });
+  renderShoppingScreen();
+}
+document.getElementById('shopping-from').addEventListener('change', onShoppingRangeChange);
+document.getElementById('shopping-to').addEventListener('change', onShoppingRangeChange);
+document.getElementById('btn-shopping-range-week').addEventListener('click', () => {
+  StorageService.set('shoppingRange', getDefaultShoppingRange());
+  renderShoppingScreen();
+});
 
 document.getElementById('btn-share-line').addEventListener('click', async () => {
   const text = ShoppingList.buildShareText(currentShoppingList, currentShoppingMenus);
@@ -2914,7 +3360,7 @@ function getUnratedPastEntries() {
   const history = StorageService.get('adoptedHistory', []);
   return history
     .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.plannedDate && item.plannedDate < todayStr && item.rating === null)
+    .filter(({ item }) => item.plannedDate && item.plannedDate < todayStr && item.rating === null && !item.notMade)
     .sort((a, b) => (a.item.plannedDate < b.item.plannedDate ? 1 : -1));
 }
 
@@ -2960,6 +3406,17 @@ function renderRatingPromptCard() {
     container.innerHTML = '';
   });
   actions.appendChild(skipBtn);
+
+  const notMadeBtn = document.createElement('button');
+  notMadeBtn.type = 'button';
+  notMadeBtn.className = 'btn-small';
+  notMadeBtn.textContent = '作らなかった';
+  notMadeBtn.addEventListener('click', () => {
+    setNotMade(candidates[0].index, true);
+    container.innerHTML = '';
+    showToast(`「${item.menu.name}」は作らなかったことにしました。もう聞きません。`);
+  });
+  actions.appendChild(notMadeBtn);
 
   card.appendChild(actions);
   container.appendChild(card);
@@ -3297,6 +3754,12 @@ function setRating(historyIndex, rating) {
   StorageService.set('adoptedHistory', history);
 }
 
+function setNotMade(historyIndex, notMade) {
+  const history = StorageService.get('adoptedHistory', []);
+  history[historyIndex].notMade = notMade;
+  StorageService.set('adoptedHistory', history);
+}
+
 function setRatingMemo(historyIndex, memo) {
   const history = StorageService.get('adoptedHistory', []);
   history[historyIndex].ratingMemo = memo;
@@ -3337,6 +3800,22 @@ function buildRatingSection(dateStr, historyIndex, item) {
     setRatingMemo(historyIndex, memoInput.value);
   });
   wrap.appendChild(memoInput);
+
+  const notMadeBtn = document.createElement('button');
+  notMadeBtn.type = 'button';
+  notMadeBtn.className = 'btn-small';
+  notMadeBtn.textContent = item.notMade ? '「作らなかった」を取り消す' : '作らなかった';
+  notMadeBtn.addEventListener('click', () => {
+    setNotMade(historyIndex, !item.notMade);
+    openDayDetail(dateStr);
+  });
+  wrap.appendChild(notMadeBtn);
+  if (item.notMade) {
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.textContent = '作らなかった印が付いています（★の集計と「どうでしたか？」から外れます）。';
+    wrap.appendChild(note);
+  }
 
   return wrap;
 }
@@ -3438,31 +3917,45 @@ document.getElementById('btn-calendar-day-detail-close').addEventListener('click
 // ==========================================================
 let librarySortMode = 'recent'; // 'recent' | 'rating'
 
-// adoptedHistoryを料理名でグルーピングし、最後に作った日が最新のものを代表として使う
+// adoptedHistoryを料理名でまとめる。
+// ★は「最後に付けた評価」（まだ評価していない回・作らなかった回は飛ばす）。
+// 「最後に作った日」は昨日までの日付だけで決め、今日以降は「次は」として分けて持つ
+// （以前は最新の1回をそのまま使ったため、「もう一度作る」と★5が「未評価」に戻っていた）
 function getLibraryEntries() {
   const history = StorageService.get('adoptedHistory', []);
+  const todayStr = formatDateLocal(new Date());
   const groups = new Map();
   history.forEach((item) => {
     const name = item.menu.name;
-    const madeDate = item.plannedDate || formatDateLocal(new Date(item.adoptedAt));
-    const existing = groups.get(name);
-    if (!existing || madeDate > existing.lastMadeDate) {
-      groups.set(name, { menu: item.menu, rating: item.rating, lastMadeDate: madeDate });
-    }
+    const date = item.plannedDate || formatDateLocal(new Date(item.adoptedAt));
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push({ item, date });
   });
-  return [...groups.values()];
+  return [...groups.values()].map((list) => {
+    list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const rated = list.filter((x) => !x.item.notMade && typeof x.item.rating === 'number' && x.item.rating > 0);
+    const made = list.filter((x) => x.date < todayStr && !x.item.notMade);
+    const upcoming = list.filter((x) => x.date >= todayStr);
+    return {
+      menu: list[list.length - 1].item.menu,
+      rating: rated.length > 0 ? rated[rated.length - 1].item.rating : null,
+      lastMadeDate: made.length > 0 ? made[made.length - 1].date : '',
+      nextPlannedDate: upcoming.length > 0 ? upcoming[0].date : ''
+    };
+  });
 }
 
 function sortLibraryEntries(entries, mode) {
   const sorted = [...entries];
   if (mode === 'rating') {
     sorted.sort((a, b) => {
-      const ar = a.rating === null ? -1 : a.rating;
-      const br = b.rating === null ? -1 : b.rating;
+      const ar = typeof a.rating === 'number' ? a.rating : -1;
+      const br = typeof b.rating === 'number' ? b.rating : -1;
       return br - ar; // 星が高い順、未評価（-1）は末尾
     });
   } else {
-    sorted.sort((a, b) => (a.lastMadeDate < b.lastMadeDate ? 1 : -1)); // 新しい順
+    const key = (e) => e.lastMadeDate || e.nextPlannedDate || '';
+    sorted.sort((a, b) => (key(a) < key(b) ? 1 : -1)); // 新しい順
   }
   return sorted;
 }
@@ -3494,7 +3987,10 @@ function renderLibraryScreen() {
     main.appendChild(name);
     const meta = document.createElement('div');
     meta.className = 'library-row-meta';
-    meta.textContent = `最後に作った日: ${entry.lastMadeDate}`;
+    const parts = [];
+    if (entry.lastMadeDate) parts.push(`最後に作った日: ${entry.lastMadeDate}`);
+    if (entry.nextPlannedDate) parts.push(`次は ${entry.nextPlannedDate}`);
+    meta.textContent = parts.length > 0 ? parts.join('　') : '日付なし';
     main.appendChild(meta);
     row.appendChild(main);
 
@@ -3576,6 +4072,28 @@ function buildLibraryDetailCard(entry) {
   againBtn.addEventListener('click', () => reAdoptMenu(menu));
   card.appendChild(againBtn);
 
+  // AIの料理を、材料・手順ごと定番メニューに入れる（C1）
+  if (!menu.isStaple) {
+    const already = getStaples().some((st) => (st.name || '').trim() === menu.name);
+    if (already) {
+      const note = document.createElement('p');
+      note.className = 'hint';
+      note.textContent = '📋 この料理は定番メニューに入っています。';
+      card.appendChild(note);
+    } else {
+      const toStapleBtn = document.createElement('button');
+      toStapleBtn.type = 'button';
+      toStapleBtn.className = 'btn btn-outline';
+      toStapleBtn.textContent = '定番に入れる';
+      toStapleBtn.addEventListener('click', () => {
+        addMenuToStaples(menu);
+        showToast(`「${menu.name}」を定番メニューに入れました。種類は「定番メニュー」で付けられます。`);
+        openLibraryDetail(menu.name);
+      });
+      card.appendChild(toStapleBtn);
+    }
+  }
+
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button';
   deleteBtn.className = 'btn btn-danger';
@@ -3592,6 +4110,29 @@ function buildLibraryDetailCard(entry) {
   return card;
 }
 
+// AIの料理を定番メニューにする。材料・手順もそのまま写し、これまで作った回とも番号でつなぐ
+function addMenuToStaples(menu) {
+  const staples = getStaples();
+  const id = newId('st_');
+  staples.push({
+    id,
+    name: menu.name,
+    category: '',
+    url: '',
+    memo: menu.description || '',
+    ingredients: JSON.parse(JSON.stringify(menu.ingredients || [])),
+    steps: [...(menu.steps || [])],
+    protein: menu.protein || '',
+    kid_note: menu.kid_note || ''
+  });
+  saveStaplesList(staples);
+  const history = StorageService.get('adoptedHistory', []);
+  history.forEach((item) => {
+    if (item.menu.name === menu.name && !item.menu.stapleId) item.menu.stapleId = id;
+  });
+  StorageService.set('adoptedHistory', history);
+}
+
 function deleteRecipeFromHistory(name) {
   const history = StorageService.get('adoptedHistory', []);
   const filtered = history.filter((item) => item.menu.name !== name);
@@ -3600,11 +4141,14 @@ function deleteRecipeFromHistory(name) {
 
 // 定番メニューがカレンダー（adoptedHistory）に何件入っているかを数える。
 // 定番メニュー本体（staples）とカレンダーの予定は別データのため、削除時に確認が必要になる
+function isPlanOfStaple(item, staple) {
+  if (!item.menu.isStaple) return false;
+  if (item.menu.stapleId) return item.menu.stapleId === staple.id;
+  return item.menu.name === (staple.name || '').trim(); // 番号が付く前の古い記録
+}
+
 function countStaplePlans(staple) {
-  const name = (staple.name || '').trim();
-  if (!name) return 0;
-  return StorageService.get('adoptedHistory', [])
-    .filter((item) => item.menu.isStaple && item.menu.name === name).length;
+  return StorageService.get('adoptedHistory', []).filter((item) => isPlanOfStaple(item, staple)).length;
 }
 
 // 定番メニューを削除する。alsoDeletePlansがtrueならカレンダーに入れた分もまとめて消す
@@ -3612,15 +4156,13 @@ function deleteStapleAndPlans(index, alsoDeletePlans) {
   const staples = getStaples();
   const target = staples[index];
   if (!target) return;
-  const name = (target.name || '').trim();
 
   staples.splice(index, 1);
   saveStaplesList(staples);
 
-  if (alsoDeletePlans && name) {
+  if (alsoDeletePlans) {
     const history = StorageService.get('adoptedHistory', []);
-    StorageService.set('adoptedHistory',
-      history.filter((item) => !(item.menu.isStaple && item.menu.name === name)));
+    StorageService.set('adoptedHistory', history.filter((item) => !isPlanOfStaple(item, target)));
   }
   refreshActiveScreen();
 }
@@ -3663,19 +4205,30 @@ function saveStaplesList(list) {
   StorageService.set('staples', list);
 }
 
-// adoptedHistoryに乗せられる形に変換する（ingredients/stepsは空のまま＝買い物リストには自動反映されない）
+// adoptedHistoryに乗せられる形に変換する。定番とは番号（stapleId）でつなぐ。
+// 材料は買い物リストを作るときに定番の今の中身を読むので、あとから材料を入れても反映される
 function staplesToMenu(staple) {
   return {
     name: staple.name,
     description: staple.memo || '',
-    protein: '',
+    protein: staple.protein || '',
     cooking_time_min: 0,
-    kid_note: '',
-    ingredients: [],
-    steps: [],
+    kid_note: staple.kid_note || '',
+    ingredients: JSON.parse(JSON.stringify(staple.ingredients || [])),
+    steps: [...(staple.steps || [])],
     isStaple: true,
+    stapleId: staple.id,
     staple_url: staple.url || ''
   };
+}
+
+// 献立の材料。定番から入れたものは、定番の今の材料を使う
+function getMenuIngredients(menu) {
+  if (menu.stapleId) {
+    const staple = getStaples().find((st) => st.id === menu.stapleId);
+    if (staple) return staple.ingredients || [];
+  }
+  return menu.ingredients || [];
 }
 
 // 定番メニューを指定日の献立として adoptedHistory に追加する。
@@ -3734,17 +4287,24 @@ function renderStapleCategoryOptions() {
 
 // 定番メニューの実績をカレンダー（adoptedHistory）から集計する。
 // 定番メニュー自体は星を持たないため、作ったときに付けた評価を料理名で拾って平均する
-function getStapleStats(name) {
-  const trimmed = (name || '').trim();
-  const stats = { ratingAvg: null, cookedCount: 0, lastMadeDate: '' };
-  if (!trimmed) return stats;
+function getStapleStats(staple) {
+  const stats = { ratingAvg: null, cookedCount: 0, lastMadeDate: '', nextPlannedDate: '' };
+  if (!staple) return stats;
+  const todayStr = formatDateLocal(new Date());
 
   const ratings = [];
   StorageService.get('adoptedHistory', []).forEach((item) => {
-    if (!item.menu.isStaple || item.menu.name !== trimmed) return;
-    stats.cookedCount += 1;
+    // 定番から入れた回と、定番に入れる前にAIの料理として作った回（同じ番号）を数える
+    const linked = item.menu.stapleId ? item.menu.stapleId === staple.id : isPlanOfStaple(item, staple);
+    if (!linked || item.notMade) return;
     const madeDate = item.plannedDate || formatDateLocal(new Date(item.adoptedAt));
-    if (madeDate > stats.lastMadeDate) stats.lastMadeDate = madeDate;
+    if (madeDate >= todayStr) {
+      // 今日以降はまだ作っていない予定。いちばん近い日を「次は」に
+      if (!stats.nextPlannedDate || madeDate < stats.nextPlannedDate) stats.nextPlannedDate = madeDate;
+    } else {
+      stats.cookedCount += 1;
+      if (madeDate > stats.lastMadeDate) stats.lastMadeDate = madeDate;
+    }
     if (item.rating) ratings.push(item.rating);
   });
   if (ratings.length > 0) {
@@ -3762,7 +4322,7 @@ function getSortedStapleEntries(mode) {
     staple,
     index,
     category: getStapleCategory(staple),
-    stats: getStapleStats(staple.name)
+    stats: getStapleStats(staple)
   }));
 
   if (mode === 'rating') {
@@ -3830,9 +4390,10 @@ function renderStaplesList() {
     badge.textContent = getStapleCategoryLabel(staple);
     meta.appendChild(badge);
     const metaText = document.createElement('span');
-    metaText.textContent = stats.lastMadeDate
+    const nextText = stats.nextPlannedDate ? `　次は ${stats.nextPlannedDate}` : '';
+    metaText.textContent = (stats.lastMadeDate
       ? `最後に作った日: ${stats.lastMadeDate}（${stats.cookedCount}回）`
-      : 'まだ作っていません';
+      : 'まだ作っていません') + nextText;
     meta.appendChild(metaText);
     main.appendChild(meta);
     row.appendChild(main);
@@ -3896,7 +4457,7 @@ function buildStapleDetailCard(index) {
 
   const statsLine = document.createElement('p');
   statsLine.className = 'hint';
-  statsLine.textContent = buildStapleDetailStatsText(staple.name);
+  statsLine.textContent = buildStapleDetailStatsText(staple);
   card.appendChild(statsLine);
 
   // URLが入っていればレシピを開くボタンを出す
@@ -3917,6 +4478,15 @@ function buildStapleDetailCard(index) {
     staple.name = nameInput.value;
     saveStaplesList(staples);
     title.textContent = nameInput.value || '(名称未設定)';
+  });
+  nameInput.addEventListener('change', () => {
+    const newName = nameInput.value.trim();
+    if (!newName) return;
+    const history = StorageService.get('adoptedHistory', []);
+    history.forEach((item) => {
+      if (item.menu.isStaple && item.menu.stapleId === staple.id) item.menu.name = newName;
+    });
+    StorageService.set('adoptedHistory', history);
   });
   card.appendChild(nameInput);
 
@@ -3969,6 +4539,8 @@ function buildStapleDetailCard(index) {
   });
   card.appendChild(memoInput);
 
+  card.appendChild(buildStapleIngredientEditor(staple, staples));
+
   // 日付を選んで、そのままカレンダーへ入れられるようにする
   const assignRow = document.createElement('div');
   assignRow.className = 'staple-date-row';
@@ -3993,7 +4565,7 @@ function buildStapleDetailCard(index) {
     const result = assignStapleToDate(staple, dateInput.value);
     assignHint.textContent = result.ok ? '' : result.message;
     showToast(result.message, result.ok ? '' : 'error');
-    if (result.ok) statsLine.textContent = buildStapleDetailStatsText(staple.name);
+    if (result.ok) statsLine.textContent = buildStapleDetailStatsText(staple);
   });
 
   const deleteBtn = document.createElement('button');
@@ -4006,14 +4578,138 @@ function buildStapleDetailCard(index) {
   return card;
 }
 
-function buildStapleDetailStatsText(name) {
-  const stats = getStapleStats(name);
-  if (stats.cookedCount === 0) return 'まだ作っていません';
+// 定番の材料の欄（C2）。空でもよい。材料のある定番は買い物リストに載る
+const INGREDIENT_CATEGORIES = ['野菜', '肉魚', 'その他'];
+
+function buildStapleIngredientEditor(staple, staples) {
+  const wrap = document.createElement('div');
+  wrap.className = 'staple-ingredients';
+
+  const label = document.createElement('p');
+  label.className = 'hint';
+  label.textContent = '材料（任意。入れると買い物リストに載ります）';
+  wrap.appendChild(label);
+
+  const list = document.createElement('div');
+  wrap.appendChild(list);
+
+  function save() {
+    saveStaplesList(staples);
+  }
+
+  function renderRows() {
+    list.innerHTML = '';
+    (staple.ingredients || []).forEach((ing, i) => {
+      const row = document.createElement('div');
+      row.className = 'ing-edit-row';
+
+      const name = document.createElement('input');
+      name.type = 'text';
+      name.className = 'ing-name';
+      name.placeholder = '材料';
+      name.value = ing.name || '';
+      name.addEventListener('input', () => { ing.name = name.value.trim(); save(); });
+
+      const amount = document.createElement('input');
+      amount.type = 'text';
+      amount.inputMode = 'decimal';
+      amount.className = 'ing-amount';
+      amount.placeholder = '量';
+      amount.value = ing.amount ? String(ing.amount) : '';
+      amount.addEventListener('input', () => { ing.amount = Number(amount.value) || 0; save(); });
+
+      const unit = document.createElement('input');
+      unit.type = 'text';
+      unit.className = 'ing-unit';
+      unit.placeholder = '単位';
+      unit.value = ing.unit || '';
+      unit.addEventListener('input', () => { ing.unit = unit.value.trim(); save(); });
+
+      const category = document.createElement('select');
+      category.className = 'ing-category';
+      INGREDIENT_CATEGORIES.forEach((c) => {
+        const option = document.createElement('option');
+        option.value = c;
+        option.textContent = c === '肉魚' ? '肉・魚' : c;
+        category.appendChild(option);
+      });
+      category.value = INGREDIENT_CATEGORIES.includes(ing.category) ? ing.category : 'その他';
+      category.addEventListener('change', () => { ing.category = category.value; save(); });
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'list-btn list-btn-delete';
+      del.textContent = '×';
+      del.setAttribute('aria-label', '材料を消す');
+      del.addEventListener('click', () => {
+        staple.ingredients.splice(i, 1);
+        save();
+        renderRows();
+      });
+
+      row.append(name, amount, unit, category, del);
+      list.appendChild(row);
+    });
+  }
+  renderRows();
+
+  const actions = document.createElement('div');
+  actions.className = 'staple-date-row';
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'btn-small';
+  addBtn.textContent = '＋ 材料を足す';
+  addBtn.addEventListener('click', () => {
+    if (!staple.ingredients) staple.ingredients = [];
+    staple.ingredients.push({ name: '', amount: 0, unit: '', category: '野菜' });
+    save();
+    renderRows();
+    const inputs = list.querySelectorAll('.ing-name');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  });
+  actions.appendChild(addBtn);
+
+  const aiBtn = document.createElement('button');
+  aiBtn.type = 'button';
+  aiBtn.className = 'btn-small';
+  aiBtn.textContent = 'AIに材料を書き出してもらう';
+  const aiHint = document.createElement('p');
+  aiHint.className = 'hint';
+  aiBtn.addEventListener('click', async () => {
+    const name = (staple.name || '').trim();
+    if (!name) { aiHint.textContent = '先に料理名を入れてください。'; return; }
+    if (!settings.apiKey) { aiHint.textContent = '設定でGeminiのAPIキーを入れてください。'; return; }
+    if ((staple.ingredients || []).length > 0 && !confirm('いま入っている材料を、AIが書き出した材料に入れ替えます。よろしいですか？')) return;
+    aiBtn.disabled = true;
+    aiHint.textContent = '書き出しています…';
+    try {
+      staple.ingredients = await GeminiService.suggestIngredients(name, staple.memo || '');
+      save();
+      renderRows();
+      aiHint.textContent = '書き出しました。量や材料は自由に直せます。';
+    } catch (err) {
+      console.error('材料の書き出しに失敗:', err);
+      aiHint.textContent = 'うまく書き出せませんでした。少し時間をおいてもう一度お試しください。';
+    } finally {
+      aiBtn.disabled = false;
+    }
+  });
+  actions.appendChild(aiBtn);
+  wrap.appendChild(actions);
+  wrap.appendChild(aiHint);
+  return wrap;
+}
+
+function buildStapleDetailStatsText(staple) {
+  const stats = getStapleStats(staple);
+  const nextText = stats.nextPlannedDate ? `　次は ${stats.nextPlannedDate}` : '';
+  if (stats.cookedCount === 0) return 'まだ作っていません' + nextText;
   // 星は四捨五入した数で描くため、平均が小数のときは数値も添えて誤解を避ける
   const avgText = stats.ratingAvg !== null && stats.ratingAvg % 1 !== 0
     ? `（平均${stats.ratingAvg.toFixed(1)}）`
     : '';
-  return `${buildStapleStarsText(stats)}${avgText}　${stats.cookedCount}回　最後に作った日: ${stats.lastMadeDate}`;
+  return `${buildStapleStarsText(stats)}${avgText}　${stats.cookedCount}回　最後に作った日: ${stats.lastMadeDate}${nextText}`;
 }
 
 function openStapleDetail(index) {
@@ -4056,6 +4752,7 @@ document.getElementById('btn-add-staple').addEventListener('click', () => {
 
   const staples = getStaples();
   staples.push({
+    id: newId('st_'),
     name,
     category: categoryInput.value.trim(),
     url: urlInput.value.trim(),
@@ -4147,6 +4844,7 @@ setInterval(() => {
 // ==========================================================
 // 初期画面の確定(タブバーのアクティブ状態を含めてホームで初期化)
 // ==========================================================
+renderBackupInfo();
 showScreen('home');
 </script>
 </body>
